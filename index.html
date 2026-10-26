@@ -572,4 +572,451 @@
         { id: 2, name: 'Bitcoin (Hardware Cold Storage)', bucket: 'Hard Assets', custody: 'Cold / Self-Custody', value: 40000 },
         { id: 3, name: 'Self-Custody DeFi Yield (Morpho)', bucket: 'Self-Custody DeFi', custody: 'Cold / Self-Custody', value: 8000 },
         { id: 4, name: 'Physical Bullion & Energy Equities', bucket: 'Equities', custody: 'Direct Treasury', value: 17000 }
+      ]
+    };
+
+    let state = loadState();
+    let conn = loadConn();
+
+    function loadState() {
+      try {
+        const raw = window.localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (parsed && Array.isArray(parsed.positions)) return parsed;
+        }
+      } catch (e) {}
+      return JSON.parse(JSON.stringify(baselineState));
+    }
+
+    function saveState() {
+      try { window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) {}
+    }
+
+    function loadConn() {
+      try {
+        const raw = window.localStorage.getItem(CONN_KEY);
+        if (raw) return JSON.parse(raw);
+      } catch (e) {}
+      return { firebaseUrl: '', walletAddress: '' };
+    }
+
+    function saveConnections() {
+      conn.firebaseUrl = document.getElementById('firebaseUrl').value.trim();
+      conn.walletAddress = document.getElementById('walletAddress').value.trim();
+      try { window.localStorage.setItem(CONN_KEY, JSON.stringify(conn)); } catch (e) {}
+    }
+
+    function toggleDrawer() {
+      document.getElementById('syncDrawer').classList.toggle('open');
+    }
+
+    function resetBaseline() {
+      state = JSON.parse(JSON.stringify(baselineState));
+      saveState();
+      syncControlsFromState();
+      render();
+    }
+
+    function syncControlsFromState() {
+      document.getElementById('firebaseUrl').value = conn.firebaseUrl || '';
+      document.getElementById('walletAddress').value = conn.walletAddress || '';
+      document.getElementById('slMonth').value = state.monthOffset;
+      document.getElementById('slSpread').value = state.sofrSpreadBps;
+      document.getElementById('slSrf').value = state.srfUsageBillions;
+      document.getElementById('qeToggle').checked = !!state.slrRelief;
+
+      ['perp_funding', 'stable_lp', 'native_staking', 'looped_borrow'].forEach(k => {
+        const btn = document.getElementById('btn_' + k);
+        if (btn) btn.classList.toggle('active', state.defiStrategy === k);
+      });
+    }
+
+    function setStrategy(strat) {
+      state.defiStrategy = strat;
+      saveState();
+      syncControlsFromState();
+      render();
+    }
+
+    function onSimChange() {
+      state.monthOffset = parseInt(document.getElementById('slMonth').value, 10) || 0;
+      state.sofrSpreadBps = parseInt(document.getElementById('slSpread').value, 10) || 0;
+      state.srfUsageBillions = parseFloat(document.getElementById('slSrf').value) || 0;
+      state.slrRelief = document.getElementById('qeToggle').checked;
+      saveState();
+      render();
+    }
+
+    function formatMonthName(offset) {
+      const total = 2026 * 12 + 9 + offset;
+      const y = Math.floor(total / 12);
+      const m = total % 12;
+      const names = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      return `${names[m]} ${y}`;
+    }
+
+    function render() {
+      const mName = formatMonthName(state.monthOffset);
+      document.getElementById('liveDateHeader').innerText = `${mName} — Month ${state.monthOffset} of 36 (NY Fed Live Telemetry)`;
+      document.getElementById('lblMonth').innerText = `Month ${state.monthOffset} (${mName})`;
+      const spSign = state.sofrSpreadBps >= 0 ? '+' : '';
+      document.getElementById('lblSpread').innerText = `${spSign}${state.sofrSpreadBps} bps`;
+      document.getElementById('lblSrf').innerText = `$${state.srfUsageBillions.toFixed(1)}B`;
+
+      // Stress Formula matching preview
+      const l1 = Math.min(10, Math.max(1, (state.sofrSpreadBps + 5) / 2.5));
+      const l2 = Math.min(10, state.srfUsageBillions / 7.5);
+      const stressScore = Math.round((l1 * 0.40 + l2 * 0.30 + 7.8 * 0.30) * 10);
+
+      // Active Phase Determination
+      let activePhase = 1;
+      if (state.slrRelief || state.monthOffset >= 21) {
+        activePhase = 3;
+      } else if (
+        state.sofrSpreadBps >= 15 ||
+        state.srfUsageBillions >= 25 ||
+        (state.monthOffset >= 12 && state.monthOffset <= 20)
+      ) {
+        activePhase = 2;
+      }
+
+      // Update Top Phase Pill
+      const pill = document.getElementById('phaseBannerPill');
+      if (activePhase === 1) {
+        pill.className = 'phase-pill phase-1';
+        pill.innerText = 'Phase 1: Liquidity Attrition — Harvest Safe Yield';
+      } else if (activePhase === 2) {
+        pill.className = 'phase-pill phase-2';
+        pill.innerText = '⚠️ Phase 2: Forced Liquidation Shock — Deploy Dry Powder';
+      } else {
+        pill.className = 'phase-pill phase-3';
+        pill.innerText = '🚀 Phase 3: Central Bank QE Pivot — Max Scarce Hard Assets';
+      }
+
+      // Update 4 KPI Cards
+      const impliedSofr = (state.effrRate + state.sofrSpreadBps / 100).toFixed(2);
+      document.getElementById('kpiEffrLabel').innerText = `SOFR vs EFFR (${state.effrRate.toFixed(2)}%)`;
+      document.getElementById('kpiSofrVal').innerText = `${impliedSofr}% (${spSign}${state.sofrSpreadBps} bps)`;
+      document.getElementById('kpiSrfVal').innerText = `$${state.srfUsageBillions.toFixed(1)}B`;
+      document.getElementById('kpiSrfVal').style.color = state.srfUsageBillions >= 25 ? 'var(--red)' : 'var(--text-main)';
+
+      const stressEl = document.getElementById('kpiStressVal');
+      const stressSub = document.getElementById('kpiStressSub');
+      stressEl.innerText = `${stressScore} / 100`;
+      if (stressScore >= 65 || activePhase === 2) {
+        stressEl.style.color = 'var(--red)';
+        stressSub.innerText = 'Elevated Funding Tightness';
+      } else if (stressScore >= 48) {
+        stressEl.style.color = 'var(--amber)';
+        stressSub.innerText = 'Moderate Repo Pressure';
+      } else {
+        stressEl.style.color = 'var(--green)';
+        stressSub.innerText = 'Calm Plumbing — Phase 1';
+      }
+
+      // Portfolio Calculations
+      const totalVal = state.positions.reduce((s, p) => s + p.value, 0) || 1;
+      const bucketTotals = { 'Dry Powder': 0, 'Hard Assets': 0, 'Equities': 0, 'Self-Custody DeFi': 0 };
+      let custodialVal = 0;
+
+      state.positions.forEach(p => {
+        bucketTotals[p.bucket] = (bucketTotals[p.bucket] || 0) + p.value;
+        if (p.custody === 'Custodial Exchange') custodialVal += p.value;
+      });
+
+      const directPct = Math.round(((totalVal - custodialVal) / totalVal) * 100);
+      document.getElementById('portfolioTotalSub').innerText =
+        `Total Portfolio Value: $${totalVal.toLocaleString()} | ${directPct}% Direct / Cold Self-Custody Hygiene`;
+
+      // Phase Target Weights
+      let targets = { 'Dry Powder': 35, 'Hard Assets': 40, 'Equities': 17, 'Self-Custody DeFi': 8 };
+      if (activePhase === 2) {
+        const defiTarget = state.defiStrategy === 'native_staking' ? 8 : 0;
+        targets = { 'Dry Powder': 15, 'Hard Assets': 60 - defiTarget, 'Equities': 25, 'Self-Custody DeFi': defiTarget };
+      } else if (activePhase === 3) {
+        targets = { 'Dry Powder': 5, 'Hard Assets': 62, 'Equities': 25, 'Self-Custody DeFi': 8 };
+      }
+
+      // Render Grouped Bars
+      const bucketsOrder = ['Dry Powder', 'Hard Assets', 'Equities', 'Self-Custody DeFi'];
+      const barsHtml = bucketsOrder.map(b => {
+        const actualPct = ((bucketTotals[b] || 0) / totalVal) * 100;
+        const targetPct = targets[b];
+        const drift = actualPct - targetPct;
+        const driftTxt = drift >= 0 ? `+${drift.toFixed(1)}%` : `${drift.toFixed(1)}%`;
+        return `
+          <div class="bar-group">
+            <div class="bar-group-header">
+              <span>${b} ($${(bucketTotals[b] || 0).toLocaleString()})</span>
+              <span class="mono">Actual: ${actualPct.toFixed(1)}% | Target: ${targetPct}.0% (Drift: ${driftTxt})</span>
+            </div>
+            <div class="bar-track">
+              <div class="bar-fill-actual" style="width:${Math.min(100, actualPct)}%;"></div>
+            </div>
+            <div class="bar-track" style="height:8px;">
+              <div class="bar-fill-target" style="width:${Math.min(100, targetPct)}%;"></div>
+            </div>
+          </div>
+        `;
+      }).join('');
+      document.getElementById('barsContainer').innerHTML = barsHtml;
+
+      // Render DeFi Contagion Monitor
+      const defiVal = bucketTotals['Self-Custody DeFi'] || 0;
+      const cCard = document.getElementById('contagionCard');
+      const cBadge = document.getElementById('contagionBadge');
+      const cTitle = document.getElementById('contagionStrategyTitle');
+      const cBody = document.getElementById('contagionBody');
+
+      if (state.defiStrategy === 'looped_borrow') {
+        cCard.className = 'alert-box status-red';
+        cBadge.className = 'badge badge-red';
+        cBadge.innerText = 'Contagion Alert: Exit to 0%';
+        cTitle.innerText = 'Looped / Borrowed Collateral (On-Chain Margin)';
+        cBody.innerText = `($${defiVal.toLocaleString()} exposed) IMMINENT LIQUIDATION: Cross-asset correlation spikes to 1.0 in Phase 2 shock; utilization hits 100% and borrow rates verticalize. De-lever to 1x supply now!`;
+      } else if (state.defiStrategy === 'stable_lp') {
+        cTitle.innerText = 'Stablecoin Lending / LP (Morpho USDC/USDT Vaults)';
+        if (activePhase === 2) {
+          cCard.className = 'alert-box status-red';
+          cBadge.className = 'badge badge-red';
+          cBadge.innerText = 'Repo Reserve Contagion';
+          cBody.innerText = `($${defiVal.toLocaleString()} exposed) REPO FREEZE ALERT: Stablecoin T-Bill/repo reserves face redemption gates during dealer stress. Withdraw vault liquidity and rotate to Spot BTC.`;
+        } else {
+          cCard.className = 'alert-box status-green';
+          cBadge.className = 'badge badge-green';
+          cBadge.innerText = 'Optimal Harvest (~9–11% APY)';
+          cBody.innerText = `($${defiVal.toLocaleString()} deployed) Plumbing is calm (+${state.sofrSpreadBps} bps spread). Safe to harvest unleveraged 1x Morpho lending yield while watching SRF usage.`;
+        }
+      } else if (state.defiStrategy === 'perp_funding') {
+        cTitle.innerText = 'Perp DEX Vault / Delta-Neutral (1x Self-Custody)';
+        if (activePhase === 2) {
+          cCard.className = 'alert-box status-amber';
+          cBadge.className = 'badge badge-amber';
+          cBadge.innerText = 'Funding Flip Warning';
+          cBody.innerText = `($${defiVal.toLocaleString()} exposed) Negative funding flip & trader short PnL drawdown during forced liquidations. Unwind delta-neutral vaults into Spot BTC.`;
+        } else {
+          cCard.className = 'alert-box status-green';
+          cBadge.className = 'badge badge-green';
+          cBadge.innerText = 'Optimal Harvest (~14% APY)';
+          cBody.innerText = `($${defiVal.toLocaleString()} deployed) Positive funding carry in calm plumbing. Harvest cash flow and sweep profits into Cold BTC or T-Bills.`;
+        }
+      } else {
+        cTitle.innerText = 'Native 1x Spot Staking (Zero Fiat/Debt Link)';
+        cCard.className = 'alert-box status-green';
+        cBadge.className = 'badge badge-green';
+        cBadge.innerText = 'Zero Plumbing Contagion';
+        cBody.innerText = `($${defiVal.toLocaleString()} deployed) No liquidation threshold and zero stablecoin reserve backing. Behaves as pure Hard Asset through all 3 phases.`;
+      }
+
+      // Render Tactical Rebalance Directive
+      let maxDrift = 0;
+      bucketsOrder.forEach(b => {
+        const actualPct = ((bucketTotals[b] || 0) / totalVal) * 100;
+        const d = Math.abs(actualPct - targets[b]);
+        if (d > maxDrift) maxDrift = d;
+      });
+
+      document.getElementById('driftBadge').innerText = `Max Drift: ${maxDrift.toFixed(1)}%`;
+      const dCard = document.getElementById('directiveCard');
+      const dTitle = document.getElementById('directiveTitle');
+      const dBody = document.getElementById('directiveBody');
+
+      if (activePhase === 2) {
+        dCard.className = 'alert-box status-red';
+        dTitle.innerText = 'Deploy T-Bill Dry Powder into Hard Assets';
+        dBody.innerText = `Repo shock active (SOFR spread ${spSign}${state.sofrSpreadBps} bps, SRF $${state.srfUsageBillions.toFixed(1)}B). Rotate Dry Powder down to 15% and accumulate spot Bitcoin & Bullion toward 60% target.`;
+      } else if (activePhase === 3) {
+        dCard.className = 'alert-box status-green';
+        dTitle.innerText = 'Central Bank Liquidity Wave Active — Maximize Hard Assets';
+        dBody.innerText = `SLR relief / QE expansion active. Rotate remaining T-Bill Dry Powder down to 5% and ride 62% Hard Assets + 8% DeFi yield sponge.`;
+      } else {
+        dCard.className = 'alert-box status-green';
+        dTitle.innerText = 'Maintain Phase 1 Dry Powder Buffer & Harvest 1x Yield';
+        dBody.innerText = `Overnight repo is calm (${spSign}${state.sofrSpreadBps} bps). Keep Dry Powder near 35% in 1–3M T-Bills and Core Cold BTC at 40% while waiting for Phase 2 discounts.`;
+      }
+
+      // Render Positions Table
+      const tbody = document.getElementById('positionsBody');
+      tbody.innerHTML = state.positions.map(p => {
+        const w = ((p.value / totalVal) * 100).toFixed(1);
+        return `
+          <tr>
+            <td style="font-weight:600;">${p.name}</td>
+            <td><span class="badge badge-blue">${p.bucket}</span></td>
+            <td>${p.custody}</td>
+            <td class="mono">$${p.value.toLocaleString()}</td>
+            <td class="mono">${w}%</td>
+            <td><button class="btn btn-del" onclick="removePos(${p.id})">✕</button></td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function addPosition() {
+      const name = document.getElementById('inName').value.trim();
+      const bucket = document.getElementById('inBucket').value;
+      const custody = document.getElementById('inCustody').value;
+      const val = parseFloat(document.getElementById('inVal').value);
+      if (!name || isNaN(val) || val <= 0) return;
+
+      state.positions.push({ id: Date.now(), name, bucket, custody, value: val });
+      document.getElementById('inName').value = '';
+      document.getElementById('inVal').value = '';
+      saveState();
+      render();
+      pushToFirebase(true);
+    }
+
+    function removePos(id) {
+      state.positions = state.positions.filter(p => p.id !== id);
+      saveState();
+      render();
+      pushToFirebase(true);
+    }
+
+    // LIVE NY FED API FETCH
+    async function fetchNYFed() {
+      const badge = document.getElementById('syncBadge');
+      try {
+        const [sofrRes, effrRes] = await Promise.all([
+          fetch('https://markets.newyorkfed.org/api/rates/secured/sofr/last/1.json'),
+          fetch('https://markets.newyorkfed.org/api/rates/unsecured/effr/last/1.json')
+        ]);
+        const sData = await sofrRes.json();
+        const eData = await effrRes.json();
+        const sRate = parseFloat(sData?.refRates?.[0]?.percentRate);
+        const eRate = parseFloat(eData?.refRates?.[0]?.percentRate);
+        if (!isNaN(sRate) && !isNaN(eRate)) {
+          state.sofrRate = sRate;
+          state.effrRate = eRate;
+          state.sofrSpreadBps = Math.round((sRate - eRate) * 100);
+          state.monthOffset = calcRealMonthOffset();
+          saveState();
+          syncControlsFromState();
+          render();
+          badge.className = 'badge badge-green';
+          badge.innerText = `NY Fed Live (${sData.refRates[0].effectiveDate})`;
+        }
+      } catch (e) {
+        badge.className = 'badge badge-amber';
+        badge.innerText = 'Cached Telemetry';
+      }
+    }
+
+    // LIVE MORPHO BLUE GRAPHQL SCANNER
+    async function fetchMorphoBalance() {
+      saveConnections();
+      const addr = conn.walletAddress;
+      const badge = document.getElementById('syncBadge');
+      if (!addr || !addr.startsWith('0x')) {
+        alert('Paste your public 0x wallet address in the Cloud & Morpho Setup drawer first.');
+        return;
+      }
+      badge.innerText = 'Scanning Morpho...';
+      const query = `
+        query GetUserPositions($address: String!) {
+          users(where: { address_in: [$address] }) {
+            items {
+              vaultPositions { assetsUsd }
+              marketPositions { supplyAssetsUsd borrowAssetsUsd }
+            }
+          }
+        }
+      `;
+      try {
+        const res = await fetch('https://blue-api.morpho.org/graphql', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query, variables: { address: addr.toLowerCase() } })
+        });
+        const json = await res.json();
+        const items = json?.data?.users?.items || [];
+        let supply = 0, borrow = 0;
+        items.forEach(u => {
+          (u.vaultPositions || []).forEach(v => supply += parseFloat(v.assetsUsd || 0));
+          (u.marketPositions || []).forEach(m => {
+            supply += parseFloat(m.supplyAssetsUsd || 0);
+            borrow += parseFloat(m.borrowAssetsUsd || 0);
+          });
+        });
+        const net = Math.round(supply - borrow);
+        state.defiStrategy = borrow > 10 ? 'looped_borrow' : 'stable_lp';
+        if (net > 0) {
+          const row = state.positions.find(p => p.bucket === 'Self-Custody DeFi');
+          if (row) {
+            row.name = `Morpho Live (${addr.slice(0,6)}...)`;
+            row.value = net;
+          } else {
+            state.positions.push({ id: Date.now(), name: `Morpho Live (${addr.slice(0,6)}...)`, bucket: 'Self-Custody DeFi', custody: 'Cold / Self-Custody', value: net });
+          }
+          saveState();
+          syncControlsFromState();
+          render();
+          pushToFirebase(true);
+          badge.className = 'badge badge-green';
+          badge.innerText = `Morpho: $${net.toLocaleString()}`;
+        } else {
+          badge.className = 'badge badge-amber';
+          badge.innerText = 'Morpho: $0 Found';
+        }
+      } catch (e) {
+        badge.className = 'badge badge-red';
+        badge.innerText = 'Morpho Error';
+      }
+    }
+
+    // FIREBASE CLOUD SYNC
+    function getFbUrl() {
+      saveConnections();
+      let u = conn.firebaseUrl;
+      if (!u) return null;
+      if (!u.endsWith('/')) u += '/';
+      return u + 'macro_command_v3.json';
+    }
+
+    async function pushToFirebase(silent) {
+      const url = getFbUrl();
+      if (!url) {
+        if (!silent) alert('Enter your Firebase Realtime DB URL in the setup drawer first.');
+        return;
+      }
+      try {
+        await fetch(url, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(state) });
+        document.getElementById('syncBadge').className = 'badge badge-green';
+        document.getElementById('syncBadge').innerText = '☁️ Cloud Saved';
+      } catch (e) {}
+    }
+
+    async function pullFromFirebase() {
+      const url = getFbUrl();
+      if (!url) return;
+      try {
+        const res = await fetch(url);
+        const data = await res.json();
+        if (data && Array.isArray(data.positions)) {
+          state = data;
+          saveState();
+          syncControlsFromState();
+          render();
+          document.getElementById('syncBadge').className = 'badge badge-green';
+          document.getElementById('syncBadge').innerText = '☁️ Cloud Loaded';
+        }
+      } catch (e) {}
+    }
+
+    async function refreshAllFeeds() {
+      await pullFromFirebase();
+      await fetchNYFed();
+      if (conn.walletAddress && conn.walletAddress.startsWith('0x')) {
+        await fetchMorphoBalance();
+      }
+    }
+
+    syncControlsFromState();
+    render();
+    refreshAllFeeds();
+  </script>
+</body>
+</html
    
