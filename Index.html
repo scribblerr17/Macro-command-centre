@@ -1,1 +1,508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#0b0f17">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>Macro Command Centre</title>
+  <style>
+    :root {
+      --bg-base: #0b0f17;
+      --bg-panel: #131b2e;
+      --bg-card: #1c263b;
+      --border: #2a3957;
+      --text-main: #e2e8f0;
+      --text-muted: #94a3b8;
+      --accent-blue: #38bdf8;
+      --accent-amber: #f59e0b;
+      --accent-red: #ef4444;
+      --accent-green: #10b981;
+      --font-mono: 'Courier New', Courier, monospace;
+      --font-sans: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
 
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: var(--bg-base);
+      color: var(--text-main);
+      font-family: var(--font-sans);
+      line-height: 1.5;
+      padding: 16px;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 14px;
+      margin-bottom: 18px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .brand h1 { font-size: 1.3rem; letter-spacing: 0.5px; color: var(--accent-blue); }
+    .brand p { font-size: 0.8rem; color: var(--text-muted); }
+    .controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+    button, select, input {
+      background: var(--bg-card);
+      color: var(--text-main);
+      border: 1px solid var(--border);
+      padding: 9px 12px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+    }
+    button { cursor: pointer; font-weight: 600; }
+    button:hover { border-color: var(--accent-blue); background: #23314d; }
+    .btn-primary { background: #0284c7; border-color: #38bdf8; color: #fff; }
+    .btn-green { background: #059669; border-color: #10b981; color: #fff; }
+    .btn-danger { background: #7f1d1d; border-color: var(--accent-red); color: #fff; }
+
+    .grid-main {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+    @media (max-width: 960px) {
+      .grid-main { grid-template-columns: 1fr; }
+    }
+    .panel {
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+    }
+    .panel-full { grid-column: 1 / -1; }
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 14px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 10px;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .panel-title { font-size: 1rem; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+
+    .badge {
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      font-family: var(--font-mono);
+    }
+    .badge-amber { background: rgba(245, 158, 11, 0.2); color: var(--accent-amber); border: 1px solid var(--accent-amber); }
+    .badge-red { background: rgba(239, 68, 68, 0.2); color: var(--accent-red); border: 1px solid var(--accent-red); }
+    .badge-green { background: rgba(16, 185, 129, 0.2); color: var(--accent-green); border: 1px solid var(--accent-green); }
+    .badge-blue { background: rgba(56, 189, 248, 0.2); color: var(--accent-blue); border: 1px solid var(--accent-blue); }
+
+    /* Cloud & API Sync Bar */
+    .sync-grid {
+      display: grid;
+      grid-template-columns: 1.5fr 1.5fr auto;
+      gap: 10px;
+      align-items: end;
+    }
+    @media (max-width: 768px) {
+      .sync-grid { grid-template-columns: 1fr; }
+    }
+
+    /* Timeline */
+    .timeline-bar {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      height: 40px;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      margin-top: 10px;
+    }
+    .phase-segment {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.78rem;
+      font-weight: 700;
+      cursor: pointer;
+      text-align: center;
+      padding: 0 6px;
+    }
+    .phase-1 { background: rgba(245, 158, 11, 0.25); color: #fcd34d; border-right: 1px solid var(--border); }
+    .phase-2 { background: rgba(239, 68, 68, 0.25); color: #fca5a5; border-right: 1px solid var(--border); }
+    .phase-3 { background: rgba(16, 185, 129, 0.25); color: #6ee7b7; }
+    .phase-active { box-shadow: inset 0 0 0 2px #fff; opacity: 1 !important; }
+    .phase-inactive { opacity: 0.5; }
+
+    .scrubber-input { width: 100%; accent-color: var(--accent-blue); margin-top: 12px; height: 24px; }
+    .timeline-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+      margin-top: 4px;
+    }
+
+    .lever-row {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 10px;
+    }
+    .lever-top {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 8px;
+      font-size: 0.88rem;
+      font-weight: 600;
+    }
+    .lever-inputs {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(135px, 1fr));
+      gap: 10px;
+    }
+    .input-group label {
+      display: block;
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+    .input-group input, .input-group select { width: 100%; font-family: var(--font-mono); }
+
+    table { width: 100%; border-collapse: collapse; font-size: 0.84rem; }
+    th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--border); }
+    th { color: var(--text-muted); font-size: 0.73rem; text-transform: uppercase; }
+    .mono { font-family: var(--font-mono); }
+
+    .action-card {
+      background: rgba(56, 189, 248, 0.08);
+      border-left: 4px solid var(--accent-blue);
+      padding: 11px;
+      border-radius: 4px;
+      margin-bottom: 9px;
+      font-size: 0.85rem;
+    }
+    .action-card.urgent { background: rgba(239, 68, 68, 0.14); border-left-color: var(--accent-red); }
+    .action-card.pivot { background: rgba(16, 185, 129, 0.14); border-left-color: var(--accent-green); }
+
+    .progress-bar { width: 100%; height: 8px; background: #0f172a; border-radius: 4px; overflow: hidden; margin-top: 5px; }
+    .progress-fill { height: 100%; transition: width 0.3s; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="brand">
+      <h1>⚡ MACRO COMMAND CENTRE</h1>
+      <p id="syncStatusText">Live NY Fed Repo API + Morpho Blue DeFi Scanner + Firebase Cloud Sync</p>
+    </div>
+    <div class="controls">
+      <button class="btn-primary" onclick="fetchLiveMacroAndDeFi()">🔄 Refresh Live Feeds</button>
+      <button class="btn-green" onclick="pushToFirebase()">☁️ Save to Firebase</button>
+      <button onclick="pullFromFirebase()">📥 Load from Firebase</button>
+    </div>
+  </header>
+
+  <div class="grid-main">
+    <!-- CLOUD & WALLET CONNECTION BAR -->
+    <div class="panel panel-full">
+      <div class="panel-header">
+        <div class="panel-title">🔗 Live Data Connections (Saved on Device)</div>
+        <span id="apiBadge" class="badge badge-blue">Ready</span>
+      </div>
+      <div class="sync-grid">
+        <div class="input-group">
+          <label>Firebase Realtime DB URL (e.g. https://macro-command-centre-default-rtdb.firebaseio.com/)</label>
+          <input type="text" id="firebaseUrl" placeholder="Paste your Firebase Realtime Database URL..." onchange="saveConnections()">
+        </div>
+        <div class="input-group">
+          <label>Public EVM Wallet Address (0x... for Auto Morpho Blue DeFi Balance)</label>
+          <input type="text" id="walletAddress" placeholder="0x... (Read-only, checks Eth Mainnet, Base & Arbitrum)" onchange="saveConnections()">
+        </div>
+        <div style="display:flex; gap:8px;">
+          <button class="btn-primary" onclick="fetchMorphoBalance()">⚡ Scan Morpho</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- TIMELINE PANEL -->
+    <div class="panel panel-full">
+      <div class="panel-header">
+        <div class="panel-title">
+          <span>⏳ Real-Time 36-Month Horizon</span>
+          <span id="activePhaseBadge" class="badge badge-amber">PHASE 1: ATTRITION</span>
+        </div>
+        <div class="controls">
+          <select id="regimeMode" onchange="saveAndUpdate()">
+            <option value="auto">Auto-Detect (Real-Time Date + Repo Stress)</option>
+            <option value="1">Force Phase 1: Liquidity Attrition</option>
+            <option value="2">Force Phase 2: Forced Liquidation Shock</option>
+            <option value="3">Force Phase 3: Central Bank QE Pivot</option>
+          </select>
+        </div>
+      </div>
+
+      <p id="phaseSummaryText" style="font-size:0.86rem; color:var(--text-muted);"></p>
+
+      <div class="timeline-bar">
+        <div id="seg1" class="phase-segment phase-1" onclick="setManualPhase('1')">Phase 1: Attrition (Mo 0–12)</div>
+        <div id="seg2" class="phase-segment phase-2" onclick="setManualPhase('2')">Phase 2: Repo Shock (Mo 12–24)</div>
+        <div id="seg3" class="phase-segment phase-3" onclick="setManualPhase('3')">Phase 3: QE Pivot (Mo 18–36)</div>
+      </div>
+      <input type="range" id="monthScrubber" class="scrubber-input" min="0" max="36" step="1" value="0" oninput="onScrub()">
+      <div class="timeline-labels">
+        <span>Oct 2026 (Start)</span>
+        <span id="currentScrubLabel" style="color:var(--accent-blue); font-weight:bold;">Current: Oct 2026 (Month 0)</span>
+        <span>Oct 2029 (Month 36)</span>
+      </div>
+    </div>
+
+    <!-- PLUMBING TELEMETRY -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">🔧 Live Repo & Macro Plumbing Levers</div>
+        <div id="stressScoreBadge" class="badge badge-amber">Stress: 41 / 100</div>
+      </div>
+
+      <div class="lever-row">
+        <div class="lever-top">
+          <span>🚨 1. NY Fed Repo Spread & SRF Usage</span>
+          <span id="lever1Score" class="mono" style="color:var(--accent-amber)">2.0/10</span>
+        </div>
+        <div class="lever-inputs">
+          <div class="input-group">
+            <label>SOFR Rate (%)</label>
+            <input type="number" id="sofrRate" step="0.01" onchange="recalcSpread()">
+          </div>
+          <div class="input-group">
+            <label>EFFR Rate (%)</label>
+            <input type="number" id="effrRate" step="0.01" onchange="recalcSpread()">
+          </div>
+          <div class="input-group">
+            <label>SOFR-EFFR Spread (bps)</label>
+            <input type="number" id="sofrSpread" step="1" onchange="saveAndUpdate()">
+          </div>
+          <div class="input-group">
+            <label>SRF Repo Usage ($B)</label>
+            <input type="number" id="srfUsage" step="0.5" onchange="saveAndUpdate()">
+          </div>
+        </div>
+      </div>
+
+      <div class="lever-row">
+        <div class="lever-top">
+          <span>🚨 2. Self-Custody DeFi Strategy & Contagion</span>
+          <span id="defiRiskBadge" class="badge badge-green">Safe Harvest</span>
+        </div>
+        <div class="lever-inputs">
+          <div class="input-group">
+            <label>Active Self-Custody DeFi Archetype</label>
+            <select id="defiStrategy" onchange="saveAndUpdate()">
+              <option value="morpho_vault">Morpho Vault / Lending (1x Unleveraged)</option>
+              <option value="perp_funding">Perp DEX / Delta-Neutral Funding</option>
+              <option value="native_staking">Native 1x Spot Staking (Zero Fiat Link)</option>
+              <option value="looped_borrow">Morpho / Aave Looped Borrow (Margin)</option>
+            </select>
+          </div>
+          <div class="input-group">
+            <label>SLR Relief / QE Pivot Active?</label>
+            <select id="slrRelief" onchange="saveAndUpdate()">
+              <option value="no">No - Normal Plumbing</option>
+              <option value="yes">Yes - Fed QE / Repo Flood</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="lever-row">
+        <div class="lever-top">
+          <span>🚨 3. Real Yield Purchasing Power Drag</span>
+          <span id="realYieldVal" class="mono" style="color:var(--accent-red)">-3.1%</span>
+        </div>
+        <div class="lever-inputs">
+          <div class="input-group">
+            <label>10Y Nominal Yield (%)</label>
+            <input type="number" id="nomYield" step="0.05" onchange="saveAndUpdate()">
+          </div>
+          <div class="input-group">
+            <label>Est. Real-World Inflation (%)</label>
+            <input type="number" id="realInf" step="0.1" onchange="saveAndUpdate()">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ACTION DIRECTIVES & TARGET BARS -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">🎯 Tactical Directives & Allocation Matrix</div>
+        <span class="badge badge-blue">PERSISTENT MEMORY</span>
+      </div>
+      <div id="actionDirectives"></div>
+      <div style="margin-top:16px; border-top:1px solid var(--border); padding-top:12px;">
+        <div id="allocationBars"></div>
+      </div>
+    </div>
+
+    <!-- PORTFOLIO MATRIX -->
+    <div class="panel panel-full">
+      <div class="panel-header">
+        <div class="panel-title">🛡️ Persistent Portfolio & Custody Matrix</div>
+        <div id="custodySummary" class="badge badge-green">100% Self-Custody / Direct</div>
+      </div>
+
+      <div style="overflow-x:auto;">
+        <table>
+          <thead>
+            <tr>
+              <th>Asset / Position</th>
+              <th>Bucket</th>
+              <th>Value (USD)</th>
+              <th>Weight</th>
+              <th>Custody</th>
+              <th>Remove</th>
+            </tr>
+          </thead>
+          <tbody id="portfolioBody"></tbody>
+        </table>
+      </div>
+
+      <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:14px; padding-top:12px; border-top:1px solid var(--border);">
+        <input type="text" id="posName" placeholder="Position Name (e.g. Morpho USDC Vault)" style="flex:2; min-width:160px;">
+        <select id="posBucket" style="flex:1.5; min-width:150px;">
+          <option value="dry_powder">Dry Powder (T-Bills/Cash)</option>
+          <option value="hard_assets">Hard Scarce Assets (BTC/Gold)</option>
+          <option value="equities">Equities / Real Assets</option>
+          <option value="yield_tactical">Self-Custody DeFi Yield</option>
+        </select>
+        <input type="number" id="posValue" placeholder="Value ($)" style="flex:1; min-width:100px;">
+        <select id="posCustody" style="flex:1.5; min-width:150px;">
+          <option value="cold">🟢 Self-Custody / Cold</option>
+          <option value="direct">🟡 Direct Treasury / Broker</option>
+          <option value="custodial">🔴 Custodial Exchange</option>
+        </select>
+        <button class="btn-primary" onclick="addPosition()">+ Add / Update</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const STORAGE_KEY = 'macro_centre_cloud_v2';
+    const CONN_KEY = 'macro_centre_connections_v2';
+
+    function calcCurrentMonthOffset() {
+      const now = new Date();
+      const diff = (now.getFullYear() - 2026) * 12 + (now.getMonth() - 9);
+      return Math.max(0, Math.min(36, diff));
+    }
+
+    const defaultState = {
+      scrubberMonth: calcCurrentMonthOffset(),
+      regimeMode: 'auto',
+      defiStrategy: 'morpho_vault',
+      metrics: {
+        sofrRate: 3.90,
+        effrRate: 3.88,
+        sofrSpread: 2,
+        srfUsage: 0.0,
+        slrRelief: 'no',
+        nomYield: 4.90,
+        realInf: 8.0
+      },
+      positions: [
+        { id: 1, name: '1-3 Month Treasury Bills', bucket: 'dry_powder', value: 35000, custody: 'direct' },
+        { id: 2, name: 'Bitcoin (Hardware Cold Storage)', bucket: 'hard_assets', value: 40000, custody: 'cold' },
+        { id: 3, name: 'Morpho Self-Custody DeFi', bucket: 'yield_tactical', value: 8000, custody: 'cold' },
+        { id: 4, name: 'Physical Bullion & Energy Equities', bucket: 'equities', value: 17000, custody: 'direct' }
+      ]
+    };
+
+    let state = loadLocalState();
+    let connections = loadConnections();
+
+    function loadLocalState() {
+      try {
+        const s = window.localStorage.getItem(STORAGE_KEY);
+        if (s) return JSON.parse(s);
+      } catch (e) {}
+      return JSON.parse(JSON.stringify(defaultState));
+    }
+
+    function saveLocalState() {
+      try { window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) {}
+    }
+
+    function loadConnections() {
+      try {
+        const c = window.localStorage.getItem(CONN_KEY);
+        if (c) return JSON.parse(c);
+      } catch (e) {}
+      return { firebaseUrl: '', walletAddress: '' };
+    }
+
+    function saveConnections() {
+      connections.firebaseUrl = document.getElementById('firebaseUrl').value.trim();
+      connections.walletAddress = document.getElementById('walletAddress').value.trim();
+      try { window.localStorage.setItem(CONN_KEY, JSON.stringify(connections)); } catch (e) {}
+    }
+
+    function initUI() {
+      document.getElementById('firebaseUrl').value = connections.firebaseUrl || '';
+      document.getElementById('walletAddress').value = connections.walletAddress || '';
+      document.getElementById('monthScrubber').value = state.scrubberMonth;
+      document.getElementById('regimeMode').value = state.regimeMode || 'auto';
+      document.getElementById('defiStrategy').value = state.defiStrategy || 'morpho_vault';
+      document.getElementById('sofrRate').value = state.metrics.sofrRate;
+      document.getElementById('effrRate').value = state.metrics.effrRate;
+      document.getElementById('sofrSpread').value = state.metrics.sofrSpread;
+      document.getElementById('srfUsage').value = state.metrics.srfUsage;
+      document.getElementById('slrRelief').value = state.metrics.slrRelief;
+      document.getElementById('nomYield').value = state.metrics.nomYield;
+      document.getElementById('realInf').value = state.metrics.realInf;
+    }
+
+    function recalcSpread() {
+      const s = parseFloat(document.getElementById('sofrRate').value) || 0;
+      const e = parseFloat(document.getElementById('effrRate').value) || 0;
+      document.getElementById('sofrSpread').value = Math.round((s - e) * 100);
+      saveAndUpdate();
+    }
+
+    function onScrub() {
+      state.scrubberMonth = parseInt(document.getElementById('monthScrubber').value, 10);
+      saveLocalState();
+      updateApp();
+    }
+
+    function setManualPhase(p) {
+      document.getElementById('regimeMode').value = p;
+      saveAndUpdate();
+    }
+
+    function saveAndUpdate() {
+      state.regimeMode = document.getElementById('regimeMode').value;
+      state.defiStrategy = document.getElementById('defiStrategy').value;
+      state.metrics.sofrRate = parseFloat(document.getElementById('sofrRate').value) || 0;
+      state.metrics.effrRate = parseFloat(document.getElementById('effrRate').value) || 0;
+      state.metrics.sofrSpread = parseFloat(document.getElementById('sofrSpread').value) || 0;
+      state.metrics.srfUsage = parseFloat(document.getElementById('srfUsage').value) || 0;
+      state.metrics.slrRelief = document.getElementById('slrRelief').value;
+      state.metrics.nomYield = parseFloat(document.getElementById('nomYield').value) || 0;
+      state.metrics.realInf = parseFloat(document.getElementById('realInf').value) || 0;
+      saveLocalState();
+      updateApp();
+    }
+
+    // 1. LIVE NY FED REPO FETCHER
+    async function fetchNYFedRates() {
+      const badge = document.getElementById('apiBadge');
+      badge.innerText = 'Fetching NY Fed...';
+      try {
+        const [sofrRes, effrRes] = await Promise.all([
+          fetch('https://markets.newyorkfed.org/api/rat
