@@ -27,7 +27,7 @@
     .phase-3 { background: rgba(16, 185, 129, 0.18); color: #6ee7b7; border-color: rgba(16, 185, 129, 0.5); }
     .sync-drawer { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 14px; margin-bottom: 16px; display: none; }
     .sync-drawer.open { display: block; }
-    .sync-grid { display: grid; grid-template-columns: 1.4fr 1.4fr auto; gap: 10px; align-items: end; }
+    .sync-grid { display: grid; grid-template-columns: 1.3fr 1.5fr auto; gap: 10px; align-items: end; }
     @media (max-width: 820px) { .sync-grid { grid-template-columns: 1fr; } }
     .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
     @media (max-width: 900px) { .kpi-grid { grid-template-columns: repeat(2, 1fr); } }
@@ -88,8 +88,8 @@
   </style>
 
   <script>
-    const STORAGE_KEY = 'macro_defi_command_v6';
-    const CONN_KEY = 'macro_defi_conn_v6';
+    const STORAGE_KEY = 'macro_defi_command_v7';
+    const CONN_KEY = 'macro_defi_conn_v7';
 
     function calcRealMonthOffset() {
       const now = new Date();
@@ -117,7 +117,7 @@
 
     function loadState() {
       try {
-        const raw = window.localStorage.getItem(STORAGE_KEY) || window.localStorage.getItem('macro_defi_command_v5');
+        const raw = window.localStorage.getItem(STORAGE_KEY) || window.localStorage.getItem('macro_defi_command_v6') || window.localStorage.getItem('macro_defi_command_v5');
         if (raw) {
           const parsed = JSON.parse(raw);
           if (parsed && Array.isArray(parsed.positions)) return parsed;
@@ -132,7 +132,7 @@
 
     function loadConn() {
       try {
-        const raw = window.localStorage.getItem(CONN_KEY) || window.localStorage.getItem('macro_defi_conn_v5');
+        const raw = window.localStorage.getItem(CONN_KEY) || window.localStorage.getItem('macro_defi_conn_v6') || window.localStorage.getItem('macro_defi_conn_v5');
         if (raw) return JSON.parse(raw);
       } catch (e) {}
       return { firebaseUrl: '', walletAddress: '' };
@@ -302,8 +302,8 @@
         cCard.className = 'alert-box status-red';
         cBadge.className = 'badge badge-red';
         cBadge.innerText = `Active Borrow: -$${borrowTotal.toLocaleString()}`;
-        cTitle.innerText = 'Looped / Borrowed Collateral (On-Chain Margin Debt)';
-        cBody.innerText = `($${borrowTotal.toLocaleString()} borrowed against $${defiVal.toLocaleString()} DeFi/Collateral) WARNING: In a Phase 2 shock, correlations hit 1.0, utilization spikes to 100%, and borrow rates verticalize. Monitor LTV closely or de-lever before Phase 2!`;
+        cTitle.innerText = 'PendleLoop / Morpho Leveraged PT (On-Chain Margin Debt)';
+        cBody.innerText = `($${borrowTotal.toLocaleString()} borrowed against $${defiVal.toLocaleString()} DeFi/PT Collateral) WARNING: In a Phase 2 repo shock, money-market utilization hits 100% and borrow rates spike above fixed PT yield. Unwind loop leverage before Phase 2!`;
       } else if (state.defiStrategy === 'stable_lp') {
         cTitle.innerText = 'Stablecoin Lending / LP (Morpho, Pendle PT/LP, Merkl)';
         if (activePhase === 2) {
@@ -347,8 +347,8 @@
 
       if (activePhase === 2) {
         dCard.className = 'alert-box status-red';
-        dTitle.innerText = 'Deploy T-Bill Dry Powder & Eliminate Margin Debt';
-        dBody.innerText = `Repo shock active (SOFR spread ${spSign}${state.sofrSpreadBps} bps, SRF $${state.srfUsageBillions.toFixed(1)}B). Clear any Margin/Borrow debt to $0 and rotate Dry Powder down to 15% into spot Bitcoin & Bullion.`;
+        dTitle.innerText = 'Deploy T-Bill Dry Powder & Unwind PT Loops';
+        dBody.innerText = `Repo shock active (SOFR spread ${spSign}${state.sofrSpreadBps} bps, SRF $${state.srfUsageBillions.toFixed(1)}B). Clear Margin/Borrow debt to $0 and rotate Dry Powder down to 15% into spot Bitcoin & Bullion.`;
       } else if (activePhase === 3) {
         dCard.className = 'alert-box status-green';
         dTitle.innerText = 'Central Bank Liquidity Wave Active — Maximize Hard Assets';
@@ -356,7 +356,7 @@
       } else {
         dCard.className = 'alert-box status-green';
         dTitle.innerText = 'Maintain Phase 1 Dry Powder Buffer & Harvest Yield';
-        dBody.innerText = `Overnight repo is calm (${spSign}${state.sofrSpreadBps} bps). Keep Dry Powder near 35% in 1–3M T-Bills and Core Cold BTC at 40% while harvesting Morpho, Pendle & Merkl yield.`;
+        dBody.innerText = `Overnight repo is calm (${spSign}${state.sofrSpreadBps} bps). Keep Dry Powder near 35% in 1–3M T-Bills and Core Cold BTC at 40% while harvesting Morpho, PendleLoop & Merkl yield.`;
       }
 
       document.getElementById('positionsBody').innerHTML = state.positions.map(p => {
@@ -428,156 +428,75 @@
       }
     }
 
-    // UNIFIED MORPHO + PENDLE V2 + MERKL V4 ETHEREUM SCANNER
+    // UNIFIED MORPHO + PENDLELOOP + PENDLE V2 + AAVE V3 LOOP + MERKL V4 SCANNER
     async function fetchMorphoBalance() {
       saveConnections();
-      const addr = (conn.walletAddress || document.getElementById('walletAddress').value).trim();
+      const rawInput = (conn.walletAddress || document.getElementById('walletAddress').value).trim();
+      const addresses = rawInput.split(/[\s,]+/).filter(a => a.startsWith('0x') && a.length >= 40);
       const badge = document.getElementById('syncBadge');
-      if (!addr || !addr.startsWith('0x')) {
-        alert('Paste your public 0x wallet address in the Cloud & Morpho Setup drawer first.');
+
+      if (addresses.length === 0) {
+        alert('Paste your 0x wallet address (or comma-separated main + proxy addresses) in the Cloud & DeFi Setup drawer.');
         return;
       }
 
-      const lowerAddr = addr.toLowerCase();
       badge.className = 'badge badge-blue';
-      badge.innerText = 'Scanning Morpho, Pendle & Merkl...';
+      badge.innerText = 'Scanning Morpho, PendleLoop, Aave & Merkl...';
 
       const newDeFiRows = [];
       let totalSup = 0, totalBor = 0;
       let counts = { morpho: 0, pendle: 0, merkl: 0 };
 
-      // 1. MORPHO BLUE (Ethereum Mainnet V1 Vaults, V2 Vaults & Markets)
+      // Pre-load Pendle Ethereum Asset Lookup so PT/YT tokens inside Morpho or PendleLoop are recognized
+      const symMap = {}, priceMap = {};
       try {
-        const morphoQuery = `
-          query GetDetailedMorphoEth($address: String!) {
-            userByAddress(chainId: 1, address: $address) {
-              vaultPositions { state { assetsUsd } vault { name symbol asset { symbol } } }
-              vaultV2Positions { assetsUsd vault { name symbol asset { symbol } } }
-              marketPositions {
-                state { supplyAssetsUsd borrowAssetsUsd collateralUsd }
-                market { loanAsset { symbol } collateralAsset { symbol } }
-              }
-            }
-          }
-        `;
-        const res = await fetch('https://api.morpho.org/graphql', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ query: morphoQuery, variables: { address: addr } })
-        });
-        const json = await res.json();
-        const user = json?.data?.userByAddress;
-
-        if (user) {
-          (user.vaultPositions || []).forEach((v, idx) => {
-            const usd = Math.round(parseFloat(v?.state?.assetsUsd || 0));
-            if (usd > 1) {
-              totalSup += usd; counts.morpho++;
-              const sym = v?.vault?.asset?.symbol || v?.vault?.symbol || 'Vault';
-              newDeFiRows.push({
-                id: Date.now() + idx + 1,
-                name: `Morpho Vault Lend: ${v?.vault?.name || sym} (${sym})`,
-                bucket: 'Self-Custody DeFi',
-                custody: 'Cold / Self-Custody',
-                value: usd,
-                isMorpho: true
-              });
-            }
-          });
-
-          (user.vaultV2Positions || []).forEach((v2, idx) => {
-            const usd = Math.round(parseFloat(v2?.assetsUsd || 0));
-            if (usd > 1) {
-              totalSup += usd; counts.morpho++;
-              const sym = v2?.vault?.asset?.symbol || v2?.vault?.symbol || 'Vault V2';
-              newDeFiRows.push({
-                id: Date.now() + idx + 100,
-                name: `Morpho V2 Lend: ${v2?.vault?.name || sym} (${sym})`,
-                bucket: 'Self-Custody DeFi',
-                custody: 'Cold / Self-Custody',
-                value: usd,
-                isMorpho: true
-              });
-            }
-          });
-
-          (user.marketPositions || []).forEach((m, idx) => {
-            const loanSym = m?.market?.loanAsset?.symbol || 'Loan';
-            const collSym = m?.market?.collateralAsset?.symbol || 'Collateral';
-            const pair = `${collSym}/${loanSym}`;
-
-            const supUsd = Math.round(parseFloat(m?.state?.supplyAssetsUsd || 0));
-            const colUsd = Math.round(parseFloat(m?.state?.collateralUsd || 0));
-            const borUsd = Math.round(parseFloat(m?.state?.borrowAssetsUsd || 0));
-
-            if (supUsd > 1) {
-              totalSup += supUsd; counts.morpho++;
-              newDeFiRows.push({
-                id: Date.now() + idx + 200,
-                name: `Morpho Market Lend: ${loanSym} (${pair})`,
-                bucket: 'Self-Custody DeFi',
-                custody: 'Cold / Self-Custody',
-                value: supUsd,
-                isMorpho: true
-              });
-            }
-            if (colUsd > 1) {
-              totalSup += colUsd; counts.morpho++;
-              const isHardCol = ['WBTC','CBBTC','TBTC','WETH','WSTETH','RETH','WEETH'].includes(collSym.toUpperCase());
-              newDeFiRows.push({
-                id: Date.now() + idx + 300,
-                name: `Morpho Collateral: ${collSym} (in ${pair})`,
-                bucket: isHardCol ? 'Hard Assets' : 'Self-Custody DeFi',
-                custody: 'Cold / Self-Custody',
-                value: colUsd,
-                isMorpho: true
-              });
-            }
-            if (borUsd > 1) {
-              totalBor += borUsd; counts.morpho++;
-              newDeFiRows.push({
-                id: Date.now() + idx + 400,
-                name: `Morpho Margin Borrow: ${loanSym} Debt (vs ${collSym})`,
-                bucket: 'Margin / Borrow',
-                custody: 'Cold / Self-Custody',
-                value: borUsd,
-                isMorpho: true
-              });
+        const assetsRes = await fetch('https://api-v2.pendle.finance/core/v1/1/assets/all');
+        if (assetsRes.ok) {
+          const aJson = await assetsRes.json();
+          (aJson?.assets || aJson || []).forEach(a => {
+            const ad = String(a?.address || '').toLowerCase();
+            if (ad) {
+              symMap[ad] = a.symbol || a.name || 'Pendle';
+              priceMap[ad] = parseFloat(a?.price?.usd ?? a?.price ?? 0) || 0;
             }
           });
         }
-      } catch (e) { console.warn('Morpho scan error:', e); }
+      } catch (e) {}
 
-    // 2. DETECT PENDLE PT/YT POSITIONS WRAPPED IN MORPHO OR LOOPS
-      try {
-        // Any Morpho position with PT- or YT- in the asset symbol is a Pendle Leveraged Loop
-        newDeFiRows.forEach(r => {
-          const upperName = r.name.toUpperCase();
-          if (upperName.includes('PT-') || upperName.includes('YT-') || upperName.includes('PENDLE')) {
-            counts.pendle++;
-            // If it's collateral, ensure it's categorized cleanly
-            if (r.name.includes('Collateral')) {
-              r.name = r.name.replace('Morpho Collateral:', 'Pendle Leveraged PT (Collateral):');
-            } else if (r.name.includes('Vault')) {
-              r.name = r.name.replace('Morpho Vault Lend:', 'Pendle Vault / PT Strategy:');
+      for (const addr of addresses) {
+        const lowerAddr = addr.toLowerCase();
+
+       // 1. MORPHO BLUE (Ethereum Mainnet V1 Vaults, V2 Vaults & Markets — tags PT Collateral automatically)
+        try {
+          const morphoQuery = `
+            query GetDetailedMorphoEth($address: String!) {
+              userByAddress(chainId: 1, address: $address) {
+                vaultPositions { state { assetsUsd } vault { name symbol asset { symbol } } }
+                vaultV2Positions { assetsUsd vault { name symbol asset { symbol } } }
+                marketPositions {
+                  state { supplyAssetsUsd borrowAssetsUsd collateralUsd }
+                  market { loanAsset { symbol address } collateralAsset { symbol address } }
+                }
+              }
             }
-          }
-        });
+          `;
+          const res = await fetch('https://api.morpho.org/graphql', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query: morphoQuery, variables: { address: addr } })
+          });
+          const json = await res.json();
+          const user = json?.data?.userByAddress;
 
-        // Optional direct wallet balance fallback for un-wrapped PT/YT tokens if held in wallet
-        const pendleDirectRes = await fetch(`https://api-v2.pendle.finance/core/v1/dashboard/positions/database/${lowerAddr}?filterUsd=0.5`).catch(() => null);
-        if (pendleDirectRes && pendleDirectRes.ok) {
-          const pData = await pendleDirectRes.json();
-          const topList = Array.isArray(pData) ? pData : (pData?.positions || pData?.results || [pData]);
-          topList.forEach((group, idx) => {
-            const openList = [...(group?.openPositions || []), ...(group?.positions || [])];
-            openList.forEach(pos => {
-              const usd = Math.round(parseFloat(pos?.valuation || pos?.usdValue || pos?.pt?.valuation || 0));
+          if (user) {
+            (user.vaultPositions || []).forEach((v, idx) => {
+              const usd = Math.round(parseFloat(v?.state?.assetsUsd || 0));
               if (usd > 1) {
-                totalSup += usd; counts.pendle++;
+                totalSup += usd; counts.morpho++;
+                const sym = v?.vault?.asset?.symbol || v?.vault?.symbol || 'Vault';
                 newDeFiRows.push({
-                  id: Date.now() + 500 + idx,
-                  name: `Pendle Direct Position: ${pos?.symbol || 'PT/YT'}`,
+                  id: Date.now() + idx + 1,
+                  name: `Morpho Vault Lend: ${v?.vault?.name || sym} (${sym})`,
                   bucket: 'Self-Custody DeFi',
                   custody: 'Cold / Self-Custody',
                   value: usd,
@@ -585,55 +504,280 @@
                 });
               }
             });
-          });
-        }
-      } catch (e) { console.warn('Pendle loop tag note:', e); }
-      
 
-      // 3. MERKL V4 REWARDS API
-      try {
-        const merklRes = await fetch(`https://api.merkl.xyz/v4/users/${lowerAddr}/rewards?chainId=1`);
-        if (merklRes.ok) {
-          const merklData = await merklRes.json();
-          const chainEntries = Array.isArray(merklData) ? merklData : (merklData?.rewards ? [merklData] : []);
-          let rIdx = 0;
-
-          chainEntries.forEach(entry => {
-            (entry?.rewards || []).forEach(rw => {
-              const sym = rw?.token?.symbol || 'Reward';
-              const dec = Number(rw?.token?.decimals ?? 18);
-              const price = parseFloat(rw?.token?.price || rw?.price || 0);
-
-              let unclaimedTokens = 0;
-              try {
-                const amtBig = BigInt(String(rw?.amount || '0').split('.')[0]);
-                const clmBig = BigInt(String(rw?.claimed || '0').split('.')[0]);
-                const pndBig = BigInt(String(rw?.pending || '0').split('.')[0]);
-                const netBig = (amtBig > clmBig ? amtBig - clmBig : 0n) + pndBig;
-                unclaimedTokens = Number(netBig) / Math.pow(10, dec);
-              } catch (err) {
-                unclaimedTokens = Math.max(0, (parseFloat(rw?.amount || 0) - parseFloat(rw?.claimed || 0)) / Math.pow(10, dec));
-              }
-
-              const usdVal = Math.round(parseFloat(rw?.usdValue || rw?.amountUSD || 0) || (unclaimedTokens * price));
-              if (usdVal >= 1 || unclaimedTokens >= 0.01) {
-                const finalUsd = usdVal >= 1 ? usdVal : Math.max(1, Math.round(unclaimedTokens));
-                totalSup += finalUsd; counts.merkl++; rIdx++;
+            (user.vaultV2Positions || []).forEach((v2, idx) => {
+              const usd = Math.round(parseFloat(v2?.assetsUsd || 0));
+              if (usd > 1) {
+                totalSup += usd; counts.morpho++;
+                const sym = v2?.vault?.asset?.symbol || v2?.vault?.symbol || 'Vault V2';
                 newDeFiRows.push({
-                  id: Date.now() + 800 + rIdx,
-                  name: `Merkl Claimable Reward: ${unclaimedTokens.toFixed(2)} ${sym}`,
+                  id: Date.now() + idx + 100,
+                  name: `Morpho V2 Lend: ${v2?.vault?.name || sym} (${sym})`,
                   bucket: 'Self-Custody DeFi',
                   custody: 'Cold / Self-Custody',
-                  value: finalUsd,
+                  value: usd,
                   isMorpho: true
                 });
               }
             });
-          });
-        }
-      } catch (e) { console.warn('Merkl V4 scan error:', e); }
 
-      if (newDeFiRows.length > 0) {
+            (user.marketPositions || []).forEach((m, idx) => {
+              const loanSym = m?.market?.loanAsset?.symbol || 'Loan';
+              const collAddr = String(m?.market?.collateralAsset?.address || '').toLowerCase();
+              const collSym = m?.market?.collateralAsset?.symbol || symMap[collAddr] || 'Collateral';
+              const pair = `${collSym}/${loanSym}`;
+              const isPendlePt = collSym.toUpperCase().startsWith('PT-') || collSym.toUpperCase().includes('PENDLE') || Boolean(symMap[collAddr]);
+
+              const supUsd = Math.round(parseFloat(m?.state?.supplyAssetsUsd || 0));
+              const colUsd = Math.round(parseFloat(m?.state?.collateralUsd || 0));
+              const borUsd = Math.round(parseFloat(m?.state?.borrowAssetsUsd || 0));
+
+              if (supUsd > 1) {
+                totalSup += supUsd; counts.morpho++;
+                newDeFiRows.push({
+                  id: Date.now() + idx + 200,
+                  name: `Morpho Market Lend: ${loanSym} (${pair})`,
+                  bucket: 'Self-Custody DeFi',
+                  custody: 'Cold / Self-Custody',
+                  value: supUsd,
+                  isMorpho: true
+                });
+              }
+              if (colUsd > 1) {
+                totalSup += colUsd;
+                if (isPendlePt) counts.pendle++; else counts.morpho++;
+                const isHardCol = ['WBTC','CBBTC','TBTC','WETH','WSTETH','RETH','WEETH'].includes(collSym.toUpperCase());
+                newDeFiRows.push({
+                  id: Date.now() + idx + 300,
+                  name: isPendlePt ? `PendleLoop PT Collateral (Morpho): ${collSym}` : `Morpho Collateral: ${collSym} (in ${pair})`,
+                  bucket: isHardCol ? 'Hard Assets' : 'Self-Custody DeFi',
+                  custody: 'Cold / Self-Custody',
+                  value: colUsd,
+                  isMorpho: true
+                });
+              }
+              if (borUsd > 1) {
+                totalBor += borUsd; counts.morpho++;
+                newDeFiRows.push({
+                  id: Date.now() + idx + 400,
+                  name: isPendlePt ? `PendleLoop Borrow Debt (Morpho): ${loanSym} vs ${collSym}` : `Morpho Margin Borrow: ${loanSym} Debt (vs ${collSym})`,
+                  bucket: 'Margin / Borrow',
+                  custody: 'Cold / Self-Custody',
+                  value: borUsd,
+                  isMorpho: true
+                });
+              }
+            });
+          }
+        } catch (e) { console.warn('Morpho scan error:', e); }
+
+        // 2A. PENDLELOOP DEDICATED ENDPOINT (/core/v1/pt-looping/loop/positions)
+        try {
+          const loopUrls = [
+            `https://api-v2.pendle.finance/core/v1/pt-looping/loop/positions?owner=${addr}&chainId=1`,
+            `https://api-v2.pendle.finance/core/v1/pt-looping/loop/positions?userAddress=${addr}&chainId=1`,
+            `https://api-v2.pendle.finance/core/v1/pt-looping/loop/positions?owner=${lowerAddr}`
+          ];
+          let loopData = null;
+          for (const u of loopUrls) {
+            const r = await fetch(u).catch(() => null);
+            if (r && r.ok) {
+              const j = await r.json();
+              const arr = Array.isArray(j) ? j : (j?.positions || j?.results || j?.items || j?.data || []);
+              if (Array.isArray(arr) && arr.length > 0) { loopData = arr; break; }
+            }
+          }
+
+          if (loopData) {
+            loopData.forEach((lp, idx) => {
+              const ptAddr = String(lp?.ptAddress || lp?.collateralAsset || lp?.pt?.address || '').toLowerCase();
+              const ptSym = lp?.ptSymbol || lp?.pt?.symbol || symMap[ptAddr] || 'PT-Loop';
+              const debtSym = lp?.debtSymbol || lp?.debtToken?.symbol || 'Stable Debt';
+
+              const colUsd = Math.round(parseFloat(lp?.collateralUsd ?? lp?.supplyUsd ?? lp?.ptValuationUsd ?? lp?.totalSupplyUsd ?? lp?.netValueUsd ?? 0));
+              const debtUsd = Math.round(parseFloat(lp?.debtUsd ?? lp?.borrowUsd ?? lp?.totalDebtUsd ?? 0));
+
+              // Avoid double-counting if already captured via Morpho direct position
+              const alreadyInMorpho = newDeFiRows.some(r => r.name.includes(ptSym) && Math.abs(r.value - colUsd) < 50);
+              if (!alreadyInMorpho && colUsd > 1) {
+                totalSup += colUsd; counts.pendle++;
+                newDeFiRows.push({
+                  id: Date.now() + 450 + idx,
+                  name: `PendleLoop Leveraged PT: ${ptSym}`,
+                  bucket: 'Self-Custody DeFi',
+                  custody: 'Cold / Self-Custody',
+                  value: colUsd,
+                  isMorpho: true
+                });
+              }
+              if (!alreadyInMorpho && debtUsd > 1) {
+                totalBor += debtUsd;
+                newDeFiRows.push({
+                  id: Date.now() + 480 + idx,
+                  name: `PendleLoop Borrow Debt: ${debtSym} (vs ${ptSym})`,
+                  bucket: 'Margin / Borrow',
+                  custody: 'Cold / Self-Custody',
+                  value: debtUsd,
+                  isMorpho: true
+                });
+              }
+            });
+          }
+        } catch (e) { console.warn('PendleLoop endpoint error:', e); }
+
+        // 2B. PENDLE V2 SPOT DASHBOARD POSITIONS
+        try {
+          const extractUsd = (obj, tokenAddr) => {
+            if (!obj) return 0;
+            if (typeof obj === 'number') return obj;
+            const v = obj.valuation ?? obj.valuationUsd ?? obj.usdValue ?? obj.balanceUsd ?? obj.value;
+            if (typeof v === 'number') return v;
+            if (v && typeof v === 'object') return parseFloat(v.usd ?? v.total ?? v.value ?? v.amount ?? 0) || 0;
+            const numV = parseFloat(v);
+            if (!isNaN(numV) && numV > 0) return numV;
+            const bal = parseFloat(obj.balance ?? obj.activeBalance ?? obj.amount ?? 0);
+            const p = priceMap[String(tokenAddr || obj.address || '').toLowerCase()] || 0;
+            return bal > 0 && p > 0 ? bal * p : 0;
+          };
+
+          const posRes = await fetch(`https://api-v2.pendle.finance/core/v1/dashboard/positions/database/${addr}?filterUsd=0.5`)
+            .then(r => r.ok ? r : fetch(`https://api-v2.pendle.finance/core/v1/dashboard/positions/database/${lowerAddr}?filterUsd=0.5`)).catch(() => null);
+
+          if (posRes && posRes.ok) {
+            const pData = await posRes.json();
+            const topList = Array.isArray(pData) ? pData : (pData?.positions || pData?.results || [pData]);
+            let pIdx = 0;
+
+            topList.forEach(group => {
+              const openList = [
+                ...(group?.openPositions || []),
+                ...(group?.syPositions || []),
+                ...(group?.positions || []),
+                ...(group?.lp || group?.pt || group?.yt ? [group] : [])
+              ];
+              openList.forEach(pos => {
+                const rawId = String(pos?.marketId || pos?.syId || pos?.marketAddress || pos?.address || '').toLowerCase();
+                const cleanAddr = rawId.includes('-') ? rawId.split('-').pop() : rawId;
+                const mktLabel = pos?.symbol || pos?.name || symMap[cleanAddr] || (cleanAddr ? cleanAddr.slice(0, 8) : 'Pendle');
+
+                const ptUsd = Math.round(extractUsd(pos?.pt, cleanAddr));
+                const ytUsd = Math.round(extractUsd(pos?.yt, cleanAddr));
+                const lpUsd = Math.round(extractUsd(pos?.lp, cleanAddr));
+                const directUsd = Math.round(extractUsd(pos, cleanAddr));
+
+                if (ptUsd > 1) {
+                  totalSup += ptUsd; counts.pendle++; pIdx++;
+                  newDeFiRows.push({ id: Date.now() + 500 + pIdx, name: `Pendle PT (Fixed Yield): ${mktLabel}`, bucket: 'Self-Custody DeFi', custody: 'Cold / Self-Custody', value: ptUsd, isMorpho: true });
+                }
+                if (ytUsd > 1) {
+                  totalSup += ytUsd; counts.pendle++; pIdx++;
+                  newDeFiRows.push({ id: Date.now() + 500 + pIdx, name: `Pendle YT (Yield Token): ${mktLabel}`, bucket: 'Self-Custody DeFi', custody: 'Cold / Self-Custody', value: ytUsd, isMorpho: true });
+                }
+                if (lpUsd > 1) {
+                  totalSup += lpUsd; counts.pendle++; pIdx++;
+                  newDeFiRows.push({ id: Date.now() + 500 + pIdx, name: `Pendle LP Pool: ${mktLabel}`, bucket: 'Self-Custody DeFi', custody: 'Cold / Self-Custody', value: lpUsd, isMorpho: true });
+                }
+                if (ptUsd <= 1 && ytUsd <= 1 && lpUsd <= 1 && directUsd > 1) {
+                  totalSup += directUsd; counts.pendle++; pIdx++;
+                  newDeFiRows.push({ id: Date.now() + 500 + pIdx, name: `Pendle Position: ${mktLabel}`, bucket: 'Self-Custody DeFi', custody: 'Cold / Self-Custody', value: directUsd, isMorpho: true });
+                }
+              });
+            });
+          }
+        } catch (e) { console.warn('Pendle spot scan error:', e); }
+
+        // 2C. AAVE V3 ETHEREUM POOL FALLBACK (Catches PendleLoop PT E-Mode Loops on Aave V3)
+        try {
+          // Aave V3 Pool on Ethereum: 0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2
+          // selector getUserAccountData(address) = 0xbf92857c
+          const paddedAddr = lowerAddr.replace('0x', '').padStart(64, '0');
+          const rpcRes = await fetch('https://ethereum-rpc.publicnode.com', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              jsonrpc: '2.0', id: 1, method: 'eth_call',
+              params: [{ to: '0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2', data: '0xbf92857c' + paddedAddr }, 'latest']
+            })
+          });
+          const rpcJson = await rpcRes.json();
+          const hex = rpcJson?.result;
+          if (hex && hex.length >= 130) {
+            // Word 0: totalCollateralBase (8 decimals USD), Word 1: totalDebtBase (8 decimals USD)
+            const colBase = Number(BigInt('0x' + hex.slice(2, 66))) / 1e8;
+            const debtBase = Number(BigInt('0x' + hex.slice(66, 130))) / 1e8;
+            const aaveColUsd = Math.round(colBase);
+            const aaveDebtUsd = Math.round(debtBase);
+
+            if (aaveColUsd > 5) {
+              totalSup += aaveColUsd; counts.pendle++;
+              newDeFiRows.push({
+                id: Date.now() + 610,
+                name: `PendleLoop / Aave V3 PT Collateral (${addr.slice(0,6)}...)`,
+                bucket: 'Self-Custody DeFi',
+                custody: 'Cold / Self-Custody',
+                value: aaveColUsd,
+                isMorpho: true
+              });
+            }
+            if (aaveDebtUsd > 5) {
+              totalBor += aaveDebtUsd;
+              newDeFiRows.push({
+                id: Date.now() + 620,
+                name: `PendleLoop / Aave V3 Borrow Debt (${addr.slice(0,6)}...)`,
+                bucket: 'Margin / Borrow',
+                custody: 'Cold / Self-Custody',
+                value: aaveDebtUsd,
+                isMorpho: true
+              });
+            }
+          }
+        } catch (e) { console.warn('Aave V3 loop check error:', e); }
+
+        // 3. MERKL V4 REWARDS API
+        try {
+          const merklRes = await fetch(`https://api.merkl.xyz/v4/users/${lowerAddr}/rewards?chainId=1`);
+          if (merklRes.ok) {
+            const merklData = await merklRes.json();
+            const chainEntries = Array.isArray(merklData) ? merklData : (merklData?.rewards ? [merklData] : []);
+            let rIdx = 0;
+
+            chainEntries.forEach(entry => {
+              (entry?.rewards || []).forEach(rw => {
+                const sym = rw?.token?.symbol || 'Reward';
+                const dec = Number(rw?.token?.decimals ?? 18);
+                const price = parseFloat(rw?.token?.price || rw?.price || 0);
+
+                let unclaimedTokens = 0;
+                try {
+                  const amtBig = BigInt(String(rw?.amount || '0').split('.')[0]);
+                  const clmBig = BigInt(String(rw?.claimed || '0').split('.')[0]);
+                  const pndBig = BigInt(String(rw?.pending || '0').split('.')[0]);
+                  const netBig = (amtBig > clmBig ? amtBig - clmBig : 0n) + pndBig;
+                  unclaimedTokens = Number(netBig) / Math.pow(10, dec);
+                } catch (err) {
+                  unclaimedTokens = Math.max(0, (parseFloat(rw?.amount || 0) - parseFloat(rw?.claimed || 0)) / Math.pow(10, dec));
+                }
+
+                const usdVal = Math.round(parseFloat(rw?.usdValue || rw?.amountUSD || 0) || (unclaimedTokens * price));
+                if (usdVal >= 1 || unclaimedTokens >= 0.01) {
+                  const finalUsd = usdVal >= 1 ? usdVal : Math.max(1, Math.round(unclaimedTokens));
+                  totalSup += finalUsd; counts.merkl++; rIdx++;
+                  newDeFiRows.push({
+                    id: Date.now() + 800 + rIdx,
+                    name: `Merkl Claimable Reward: ${unclaimedTokens.toFixed(2)} ${sym}`,
+                    bucket: 'Self-Custody DeFi',
+                    custody: 'Cold / Self-Custody',
+                    value: finalUsd,
+                    isMorpho: true
+                  });
+                }
+              });
+            });
+          }
+        } catch (e) { console.warn('Merkl V4 scan error:', e); }
+      }
+      
+    if (newDeFiRows.length > 0) {
         state.positions = state.positions.filter(p => !p.isMorpho && !p.isDeFi);
         state.positions.push(...newDeFiRows);
         state.defiStrategy = totalBor > 10 ? 'looped_borrow' : 'stable_lp';
@@ -647,7 +791,7 @@
       } else {
         badge.className = 'badge badge-amber';
         badge.innerText = 'DeFi: $0 Found';
-        alert('Scanned Morpho, Pendle & Merkl on Ethereum for ' + addr.slice(0,8) + '... and found 0 positions.');
+        alert('Scanned Morpho, PendleLoop, Aave V3 & Merkl on Ethereum and found 0 positions.');
       }
     }
     window.fetchDeFiProtocols = fetchMorphoBalance;
@@ -657,7 +801,7 @@
       let u = conn.firebaseUrl;
       if (!u) return null;
       if (!u.endsWith('/')) u += '/';
-      return u + 'macro_command_v6.json';
+      return u + 'macro_command_v7.json';
     }
 
     async function pushToFirebase(silent) {
@@ -693,7 +837,7 @@
     async function refreshAllFeeds() {
       await pullFromFirebase();
       await fetchNYFed();
-      if (conn.walletAddress && conn.walletAddress.startsWith('0x')) {
+      if (conn.walletAddress && conn.walletAddress.includes('0x')) {
         await fetchMorphoBalance();
       }
     }
@@ -707,7 +851,7 @@
 </head>
 <body>
 
-   <div class="top-header">
+  <div class="top-header">
     <div>
       <div class="eyebrow">
         <span id="liveDateHeader">Oct 26, 2026 — Month 0 of 36 (NY Fed Live Telemetry)</span>
@@ -729,7 +873,7 @@
 
   <div id="syncDrawer" class="sync-drawer">
     <div style="font-size:0.82rem; font-weight:700; margin-bottom:10px; color:var(--blue);">
-      ☁️ Firebase Realtime DB & Ethereum DeFi Scanner (Morpho + Pendle V2 + Merkl V4)
+      ☁️ Firebase DB & Ethereum DeFi Scanner (Morpho + PendleLoop + Aave V3 + Merkl V4)
     </div>
     <div class="sync-grid">
       <div>
@@ -737,11 +881,11 @@
         <input type="text" id="firebaseUrl" placeholder="https://macro-command-centre-default-rtdb.firebaseio.com/" onchange="saveConnections()">
       </div>
       <div>
-        <label style="font-size:0.72rem; color:var(--text-muted); display:block; margin-bottom:4px;">Ethereum Wallet Address (0x... Read-Only Scan)</label>
-        <input type="text" id="walletAddress" placeholder="0x..." onchange="saveConnections()">
+        <label style="font-size:0.72rem; color:var(--text-muted); display:block; margin-bottom:4px;">Ethereum Wallet(s) — Main 0x... (or Main 0x..., Proxy 0x...)</label>
+        <input type="text" id="walletAddress" placeholder="0x... (supports comma-separated sub-accounts)" onchange="saveConnections()">
       </div>
       <div style="display:flex; gap:6px; flex-wrap:wrap;">
-        <button class="btn btn-primary" onclick="fetchMorphoBalance()">⚡ Scan Morpho / Pendle / Merkl</button>
+        <button class="btn btn-primary" onclick="fetchMorphoBalance()">⚡ Scan All DeFi & Loops</button>
         <button class="btn" onclick="pushToFirebase(false)">☁️ Save Cloud</button>
         <button class="btn" onclick="pullFromFirebase()">📥 Load Cloud</button>
       </div>
@@ -857,8 +1001,8 @@
   <div class="card">
     <div class="card-header">
       <div>
-        <div class="card-title">Self-Custody, DeFi Lend, Pendle & Margin Borrow Positions</div>
-        <div class="card-subtitle">Scans Morpho, Pendle V2, and Merkl V4 without overwriting your manual entries</div>
+        <div class="card-title">Self-Custody, DeFi Lend, PendleLoop & Margin Borrow Positions</div>
+        <div class="card-subtitle">Scans Morpho, PendleLoop, Aave V3 E-Mode, and Merkl V4 without overwriting manual entries</div>
       </div>
     </div>
 
