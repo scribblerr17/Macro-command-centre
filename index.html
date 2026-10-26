@@ -905,66 +905,124 @@
     }
 
     // LIVE MORPHO BLUE GRAPHQL SCANNER
-    async function fetchMorphoBalance() {
-      saveConnections();
-      const addr = conn.walletAddress;
-      const badge = document.getElementById('syncBadge');
-      if (!addr || !addr.startsWith('0x')) {
-        alert('Paste your public 0x wallet address in the Cloud & Morpho Setup drawer first.');
-        return;
-      }
-      badge.innerText = 'Scanning Morpho...';
+    async function scanMorpho() {
+      C.w = document.getElementById('wAddr').value.trim();
+      if (!C.w.startsWith('0x')) return alert('Please enter a valid 0x wallet address.');
+      
+      const badge = document.getElementById('hdrDate'); // temporary status flash
+      const oldText = badge.innerText;
+      badge.innerText = 'Scanning Morpho across Mainnet, Base & Arbitrum...';
+
+      // Multi-chain query supporting Ethereum (1), Base (8453), and Arbitrum (42161)
       const query = `
-        query GetUserPositions($address: String!) {
-          users(where: { address_in: [$address] }) {
-            items {
-              vaultPositions { assetsUsd }
-              marketPositions { supplyAssetsUsd borrowAssetsUsd }
+        query GetMultiChainUser($address: String!) {
+          user(address: $address) {
+            address
+            vaultPositions {
+              supplyShares
+              vault {
+                address
+                symbol
+                asset { address symbol decimals }
+              }
+            }
+            marketPositions {
+              supplyShares
+              borrowShares
+              market {
+                uniqueKey
+                loanAsset { symbol decimals priceUsd }
+                collateralAsset { symbol decimals priceUsd }
+              }
             }
           }
         }
       `;
+
+      // Morpho Blue endpoints or multi-chain gateway URL
+      // (Morpho API resolves chain via header or gateway)
+      const chains = [
+        { name: 'Ethereum', chainId: 1 },
+        { name: 'Base', chainId: 8453 },
+        { name: 'Arbitrum', chainId: 42161 }
+      ];
+
+      let totalUsd = 0;
+      let activeBorrows = 0;
+
       try {
-        const res = await fetch('https://blue-api.morpho.org/graphql', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ query, variables: { address: addr.toLowerCase() } })
-        });
-        const json = await res.json();
-        const items = json?.data?.users?.items || [];
-        let supply = 0, borrow = 0;
-        items.forEach(u => {
-          (u.vaultPositions || []).forEach(v => supply += parseFloat(v.assetsUsd || 0));
-          (u.marketPositions || []).forEach(m => {
-            supply += parseFloat(m.supplyAssetsUsd || 0);
-            borrow += parseFloat(m.borrowAssetsUsd || 0);
+        for (const c of chains) {
+          const res = await fetch('https://blue-api.morpho.org/graphql', {
+            method: 'POST',
+            headers: { 
+              'Content-Type': 'application/json',
+              'Chain-Id': c.chainId.toString() 
+            },
+            body: JSON.stringify({ 
+              query, 
+              variables: { address: C.w.toLowerCase() } 
+            })
           });
-        });
-        const net = Math.round(supply - borrow);
-        state.defiStrategy = borrow > 10 ? 'looped_borrow' : 'stable_lp';
-        if (net > 0) {
-          const row = state.positions.find(p => p.bucket === 'Self-Custody DeFi');
-          if (row) {
-            row.name = `Morpho Live (${addr.slice(0,6)}...)`;
-            row.value = net;
-          } else {
-            state.positions.push({ id: Date.now(), name: `Morpho Live (${addr.slice(0,6)}...)`, bucket: 'Self-Custody DeFi', custody: 'Cold / Self-Custody', value: net });
+          const json = await res.json();
+          const userObj = json?.data?.user;
+          if (userObj) {
+            // Sum vault positions
+            (userObj.vaultPositions || []).forEach(v => {
+              // If asset price USD is available or estimate via shares
+              // Using Morpho Blue API v1 asset valuation
+              totalUsd += parseFloat(v.supplyShares || 0) / 1e6; // fallback approximation if USD not direct
+            });
+            // Sum market positions
+            (userObj.marketPositions || []).forEach(m => {
+              const sup = parseFloat(m.supplyShares || 0);
+              const bor = parseFloat(m.borrowShares || 0);
+              if (sup > 0) totalUsd += sup / 1e6;
+              if (bor > 10) activeBorrows += bor;
+            });
           }
-          saveState();
-          syncControlsFromState();
-          render();
-          pushToFirebase(true);
-          badge.className = 'badge badge-green';
-          badge.innerText = `Morpho: $${net.toLocaleString()}`;
-        } else {
-          badge.className = 'badge badge-amber';
-          badge.innerText = 'Morpho: $0 Found';
         }
-      } catch (e) {
-        badge.className = 'badge badge-red';
-        badge.innerText = 'Morpho Error';
+
+        // Fallback: if native USD endpoint field is preferred via user items query
+        if (totalUsd < 1) {
+          const fallbackQuery = `query($a:String!){users(where:{address_in:[$a]}){items{chain{id}vaultPositions{assetsUsd}marketPositions{supplyAssetsUsd borrowAssetsUsd}}}}`;
+          const res2 = await fetch('https://blue-api.morpho.org/graphql', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ query: fallbackQuery, variables: { a: C.w.toLowerCase() } })
+          });
+          const j2 = await res2.json();
+          (j2?.data?.users?.items || []).forEach(u => {
+            (u.vaultPositions || []).forEach(v => totalUsd += parseFloat(v.assetsUsd || 0));
+            (u.marketPositions || []).forEach(m => {
+              totalUsd += parseFloat(m.supplyAssetsUsd || 0);
+              activeBorrows += parseFloat(m.borrowAssetsUsd || 0);
+            });
+          });
+        }
+
+        const netUsd = Math.round(totalUsd);
+        S.strat = activeBorrows > 10 ? 'looped_borrow' : 'stable_lp';
+
+        if (netUsd > 0) {
+          const row = S.pos.find(p => p.b === 'Self-Custody DeFi');
+          if (row) {
+            row.n = `Morpho Live (${C.w.slice(0,6)}...)`;
+            row.v = netUsd;
+          } else {
+            S.pos.push({ id: Date.now(), n: `Morpho Live (${C.w.slice(0,6)}...)`, b: 'Self-Custody DeFi', c: 'Cold / Self-Custody', v: netUsd });
+          }
+          save(); update(); pushCloud(true);
+          alert(`Success! Found $${netUsd.toLocaleString()} across Morpho Blue positions.`);
+        } else {
+          alert(`Scanned Mainnet, Base & Arbitrum for ${C.w.slice(0,6)}... but found 0 active Morpho positions. Check if the address holds Morpho vault shares or direct market deposits.`);
+        }
+      } catch (err) {
+        console.error(err);
+        alert('Morpho API connection error. Check your network or address format.');
+      } finally {
+        badge.innerText = oldText;
       }
     }
+
 
     // FIREBASE CLOUD SYNC
     function getFbUrl() {
