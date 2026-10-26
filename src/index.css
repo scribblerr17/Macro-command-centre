@@ -1,0 +1,27 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Courier New', monospace;
+}
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    background-color: #0b1120;
+    color: #f8fafc;
+    font-family: var(--font-sans);
+    line-height: 1.45;
+    margin: 0;
+    padding: 0;
+  }
+
+  input[type="range"] {
+    accent-color: #38bdf8;
+    cursor: pointer;
+    height: 22px;
+  }
+}

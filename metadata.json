@@ -1,0 +1,5 @@
+{
+  "name": "Macro Collateral & DeFi Command",
+  "description": "Macro liquidity plumbing monitor, 36-month repo stress simulator, tactical portfolio allocation advisor, and Ethereum DeFi position scanner.",
+  "requestFramePermissions": []
+}
