@@ -283,5 +283,293 @@
       gap: 16px;
       margin-bottom: 16px;
     }
-    @
-    
+    @media (max-width: 780px) { .dual-grid { grid-template-columns: 1fr; } }
+
+    .alert-box {
+      border-radius: 10px;
+      padding: 16px;
+      border: 1px solid var(--border);
+      background: var(--bg-card);
+    }
+    .alert-box.status-green { border-left: 4px solid var(--green); }
+    .alert-box.status-amber { border-left: 4px solid var(--amber); }
+    .alert-box.status-red { border-left: 4px solid var(--red); background: rgba(239, 68, 68, 0.06); }
+
+    .badge {
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      font-family: var(--font-mono);
+    }
+    .badge-green { background: rgba(16, 185, 129, 0.18); color: #6ee7b7; border: 1px solid rgba(16, 185, 129, 0.4); }
+    .badge-amber { background: rgba(245, 158, 11, 0.18); color: #fcd34d; border: 1px solid rgba(245, 158, 11, 0.4); }
+    .badge-red { background: rgba(239, 68, 68, 0.2); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.45); }
+    .badge-blue { background: rgba(56, 189, 248, 0.18); color: var(--blue); border: 1px solid rgba(56, 189, 248, 0.4); }
+
+    /* Positions Table */
+    table { width: 100%; border-collapse: collapse; font-size: 0.84rem; }
+    th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--border); }
+    th { color: var(--text-muted); font-size: 0.73rem; text-transform: uppercase; letter-spacing: 0.04em; }
+    .mono { font-family: var(--font-mono); }
+
+    .add-row {
+      display: grid;
+      grid-template-columns: 1.6fr 1.2fr 1.2fr 1fr auto;
+      gap: 8px;
+      margin-top: 14px;
+      padding-top: 12px;
+      border-top: 1px solid var(--border);
+    }
+    @media (max-width: 780px) { .add-row { grid-template-columns: 1fr 1fr; } }
+
+    input[type="text"], input[type="number"], select {
+      background: var(--bg-sub);
+      color: var(--text-main);
+      border: 1px solid var(--border);
+      padding: 8px 10px;
+      border-radius: 6px;
+      font-size: 0.83rem;
+      width: 100%;
+    }
+    .btn {
+      background: var(--bg-sub);
+      color: var(--text-main);
+      border: 1px solid var(--border);
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn:hover { border-color: var(--blue); }
+    .btn-primary { background: #0284c7; border-color: var(--blue); color: #fff; }
+    .btn-del { background: rgba(239, 68, 68, 0.15); color: #fca5a5; border-color: rgba(239, 68, 68, 0.4); padding: 4px 9px; }
+  </style>
+</head>
+<body>
+
+  <!-- TOP HEADER -->
+  <div class="top-header">
+    <div>
+      <div class="eyebrow">
+        <span id="liveDateHeader">Oct 25, 2026 — Month 0 of 36 (NY Fed Live Telemetry)</span>
+        <span id="syncBadge" class="badge badge-blue">Ready</span>
+      </div>
+      <div class="main-title">Macro Collateral & DeFi Command</div>
+    </div>
+    <div class="header-right">
+      <div id="phaseBannerPill" class="phase-pill phase-1">
+        Phase 1: Liquidity Attrition — Harvest Safe Yield
+      </div>
+      <div style="display:flex; gap:6px; flex-wrap:wrap;">
+        <button class="btn" onclick="toggleDrawer()">⚙️ Cloud & Morpho Setup</button>
+        <button class="btn btn-primary" onclick="refreshAllFeeds()">🔄 Sync NY Fed & Morpho</button>
+        <button class="btn" onclick="resetBaseline()">↺ Reset $100k Baseline</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- COLLAPSIBLE CLOUD & MORPHO DRAWER -->
+  <div id="syncDrawer" class="sync-drawer">
+    <div style="font-size:0.82rem; font-weight:700; margin-bottom:10px; color:var(--blue);">
+      ☁️ Firebase Realtime DB & Read-Only Morpho Blue Wallet Scanner (Saved on Device)
+    </div>
+    <div class="sync-grid">
+      <div>
+        <label style="font-size:0.72rem; color:var(--text-muted); display:block; margin-bottom:4px;">Firebase Realtime Database URL</label>
+        <input type="text" id="firebaseUrl" placeholder="https://macro-command-centre-default-rtdb.firebaseio.com/" onchange="saveConnections()">
+      </div>
+      <div>
+        <label style="font-size:0.72rem; color:var(--text-muted); display:block; margin-bottom:4px;">Public EVM Address (0x... scans Morpho on Eth, Base, Arb)</label>
+        <input type="text" id="walletAddress" placeholder="0x..." onchange="saveConnections()">
+      </div>
+      <div style="display:flex; gap:6px;">
+        <button class="btn btn-primary" onclick="fetchMorphoBalance()">⚡ Scan Morpho</button>
+        <button class="btn" onclick="pushToFirebase()">☁️ Save Cloud</button>
+        <button class="btn" onclick="pullFromFirebase()">📥 Load Cloud</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4 TELEMETRY KPI CARDS -->
+  <div class="kpi-grid">
+    <div class="kpi-card">
+      <div class="kpi-label" id="kpiEffrLabel">SOFR vs EFFR (3.88%)</div>
+      <div class="kpi-val" id="kpiSofrVal" style="color:var(--blue);">3.90% (+2 bps)</div>
+      <div class="kpi-sub">IORB Bench: 3.90%</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">NY Fed SRF Usage</div>
+      <div class="kpi-val" id="kpiSrfVal" style="color:var(--text-main);">$0.0B</div>
+      <div class="kpi-sub">4.00% Ceiling (52W Hi $74.6B)</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">10Y TIPS / Real Spread</div>
+      <div class="kpi-val" id="kpiTipsVal" style="color:var(--amber);">+2.65% / -3.10%</div>
+      <div class="kpi-sub">4.90% Nom vs 8.0% True Inf</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Plumbing Stress Score</div>
+      <div class="kpi-val" id="kpiStressVal" style="color:var(--green);">41 / 100</div>
+      <div class="kpi-sub" id="kpiStressSub">Calm Plumbing — Phase 1</div>
+    </div>
+  </div>
+
+  <!-- PLUMBING & TIMELINE STRESS SIMULATOR -->
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="card-title">Plumbing & Timeline Stress Simulator</div>
+        <div class="card-subtitle">Scrub 36-month horizon or spike repo rates (+15 bps / $25B SRF triggers Phase 2 Shock)</div>
+      </div>
+      <label class="qe-toggle">
+        <input type="checkbox" id="qeToggle" onchange="onSimChange()">
+        <span>SLR Relief / QE Pivot Active</span>
+      </label>
+    </div>
+
+    <div class="sliders-grid">
+      <div class="slider-box">
+        <div class="slider-top">
+          <span>Timeline Horizon (Oct 2026 – Oct 2029)</span>
+          <span class="slider-val" id="lblMonth">Month 0 (Oct 2026)</span>
+        </div>
+        <input type="range" id="slMonth" min="0" max="36" step="1" value="0" oninput="onSimChange()">
+      </div>
+
+      <div class="slider-box">
+        <div class="slider-top">
+          <span>SOFR - EFFR Spread (bps)</span>
+          <span class="slider-val" id="lblSpread">+2 bps</span>
+        </div>
+        <input type="range" id="slSpread" min="-5" max="40" step="1" value="2" oninput="onSimChange()">
+      </div>
+
+      <div class="slider-box">
+        <div class="slider-top">
+          <span>Standing Repo Facility ($B)</span>
+          <span class="slider-val" id="lblSrf">$0.0B</span>
+        </div>
+        <input type="range" id="slSrf" min="0" max="80" step="0.5" value="0" oninput="onSimChange()">
+      </div>
+    </div>
+
+    <div class="strategy-row">
+      <div style="font-size:0.8rem; font-weight:600; color:var(--text-muted);">
+        Self-Custody DeFi Strategy Mechanism (Applies to DeFi Bucket):
+      </div>
+      <div class="pill-group">
+        <button class="strat-btn active" id="btn_perp_funding" onclick="setStrategy('perp_funding')">Perp DEX / Funding Rate</button>
+        <button class="strat-btn" id="btn_stable_lp" onclick="setStrategy('stable_lp')">Stablecoin Lending / LP (Morpho)</button>
+        <button class="strat-btn" id="btn_native_staking" onclick="setStrategy('native_staking')">Native 1x Spot Staking</button>
+        <button class="strat-btn" id="btn_looped_borrow" onclick="setStrategy('looped_borrow')">Looped / Borrowed Margin</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PORTFOLIO ALLOCATION VS PHASE TARGET WEIGHTS (%) -->
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="card-title">Portfolio Allocation vs. Phase Target Weights (%)</div>
+        <div class="card-subtitle" id="portfolioTotalSub">Total Portfolio Value: $100,000 | 100% Direct / Cold Self-Custody Hygiene</div>
+      </div>
+      <div class="chart-legend">
+        <div class="legend-item"><span class="swatch swatch-actual"></span> Actual Bucket Weight (%)</div>
+        <div class="legend-item"><span class="swatch swatch-target"></span> Phase Target Weight (%)</div>
+      </div>
+    </div>
+    <div id="barsContainer"></div>
+  </div>
+
+  <!-- DEFI CONTAGION MONITOR & TACTICAL REBALANCE DIRECTIVE -->
+  <div class="dual-grid">
+    <div id="contagionCard" class="alert-box status-green">
+      <div class="card-header" style="margin-bottom:8px;">
+        <div class="card-title">DeFi Contagion Monitor</div>
+        <span id="contagionBadge" class="badge badge-green">Optimal Harvest</span>
+      </div>
+      <div id="contagionStrategyTitle" style="font-size:0.85rem; font-weight:700; color:var(--blue); margin-bottom:6px;">
+        Perp DEX / Delta-Neutral (1x Self-Custody)
+      </div>
+      <div id="contagionBody" style="font-size:0.82rem; color:var(--text-muted);"></div>
+    </div>
+
+    <div id="directiveCard" class="alert-box status-green">
+      <div class="card-header" style="margin-bottom:8px;">
+        <div class="card-title">Tactical Rebalance Directive</div>
+        <span id="driftBadge" class="badge badge-blue">Max Drift: 0.0%</span>
+      </div>
+      <div id="directiveTitle" style="font-size:0.85rem; font-weight:700; color:var(--text-main); margin-bottom:6px;"></div>
+      <div id="directiveBody" style="font-size:0.82rem; color:var(--text-muted);"></div>
+    </div>
+  </div>
+
+  <!-- SELF-CUSTODY & DIRECT TREASURY POSITIONS TABLE -->
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="card-title">Self-Custody & Direct Treasury Positions</div>
+        <div class="card-subtitle">Add or remove positions to test live allocation drift against active macro phase</div>
+      </div>
+    </div>
+
+    <div style="overflow-x:auto;">
+      <table>
+        <thead>
+          <tr>
+            <th>Position / Instrument</th>
+            <th>Bucket</th>
+            <th>Custody Hygiene</th>
+            <th>Value (USD)</th>
+            <th>Weight</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="positionsBody"></tbody>
+      </table>
+    </div>
+
+    <div class="add-row">
+      <input type="text" id="inName" placeholder="Instrument name (e.g. Morpho USDC Vault)">
+      <select id="inBucket">
+        <option value="Hard Assets">Hard Assets</option>
+        <option value="Dry Powder">Dry Powder</option>
+        <option value="Equities">Equities</option>
+        <option value="Self-Custody DeFi">Self-Custody DeFi</option>
+      </select>
+      <select id="inCustody">
+        <option value="Cold / Self-Custody">Cold / Self-Custody</option>
+        <option value="Direct Treasury">Direct Treasury</option>
+        <option value="Custodial Exchange">Custodial Exchange</option>
+      </select>
+      <input type="number" id="inVal" placeholder="Value ($)">
+      <button class="btn btn-primary" onclick="addPosition()">+ Add Position</button>
+    </div>
+  </div>
+
+  <script>
+    const STORAGE_KEY = 'macro_defi_command_v3';
+    const CONN_KEY = 'macro_defi_conn_v3';
+
+    function calcRealMonthOffset() {
+      const now = new Date();
+      const diff = (now.getFullYear() - 2026) * 12 + (now.getMonth() - 9);
+      return Math.max(0, Math.min(36, diff));
+    }
+
+    const baselineState = {
+      monthOffset: calcRealMonthOffset(),
+      sofrRate: 3.90,
+      effrRate: 3.88,
+      sofrSpreadBps: 2,
+      srfUsageBillions: 0.0,
+      slrRelief: false,
+      defiStrategy: 'stable_lp',
+      positions: [
+        { id: 1, name: '1-3 Month Treasury Bills (3.88% Yield)', bucket: 'Dry Powder', custody: 'Direct Treasury', value: 35000 },
+        { id: 2, name: 'Bitcoin (Hardware Cold Storage)', bucket: 'Hard Assets', custody: 'Cold / Self-Custody', value: 40000 },
+        { id: 3, name: 'Self-Custody DeFi Yield (Morpho)', bucket: 'Self-Custody DeFi', custody: 'Cold / Self-Custody', value: 8000 },
+        { id: 4, name: 'Physical Bullion & Energy Equities', bucket: 'Equities', custody: 'Direct Treasury', value: 17000 }
+   
