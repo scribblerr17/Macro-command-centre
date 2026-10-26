@@ -289,7 +289,7 @@
         <input type="text" id="walletAddress" placeholder="0x..." onchange="saveConnections()">
       </div>
       <div style="display:flex; gap:6px; flex-wrap:wrap;">
-        <button class="btn btn-primary" onclick="fetchMorphoBalance()">⚡ Scan Morpho</button>
+        <button class="btn btn-primary" onclick="fetchDeFiProtocols()">⚡ Scan DeFi</button>
         <button class="btn" onclick="pushToFirebase(false)">☁️ Save Cloud</button>
         <button class="btn" onclick="pullFromFirebase()">📥 Load Cloud</button>
       </div>
@@ -816,8 +816,8 @@
       }
     }
 
-    // DETAILED MORPHO ETHEREUM SCANNER (Splits Vaults, Lend, Collateral & Borrow by Asset)
-    async function fetchMorphoBalance() {
+    // --- MULTI-PROTOCOL DEFI SCANNER (Morpho, Pendle & Merkl) ---
+    async function fetchDeFiProtocols() {
       saveConnections();
       const addr = (conn.walletAddress || document.getElementById('walletAddress').value).trim();
       const badge = document.getElementById('syncBadge');
@@ -826,56 +826,46 @@
         return;
       }
       badge.className = 'badge badge-blue';
-      badge.innerText = 'Scanning Ethereum Morpho...';
+      badge.innerText = 'Scanning DeFi Protocols (Morpho, Pendle, Merkl)...';
 
-      const query = `
-        query GetDetailedMorphoEth($address: String!) {
-          userByAddress(chainId: 1, address: $address) {
-            vaultPositions {
-              state { assetsUsd }
-              vault { name symbol asset { symbol } }
-            }
-            vaultV2Positions {
-              assetsUsd
-              vault { name symbol asset { symbol } }
-            }
-            marketPositions {
-              state { supplyAssetsUsd borrowAssetsUsd collateralUsd }
-              market {
-                loanAsset { symbol }
-                collateralAsset { symbol }
+      const newDeFiRows = [];
+      let totalSup = 0, totalBor = 0;
+
+      // 1. SCAN MORPHO ETHEREUM
+      try {
+        const morphoQuery = `
+          query GetMorphoEth($address: String!) {
+            userByAddress(chainId: 1, address: $address) {
+              vaultPositions { state { assetsUsd } vault { name symbol asset { symbol } } }
+              vaultV2Positions { assetsUsd vault { name symbol asset { symbol } } }
+              marketPositions {
+                state { supplyAssetsUsd borrowAssetsUsd collateralUsd }
+                market { loanAsset { symbol } collateralAsset { symbol } }
               }
             }
           }
-        }
-      `;
-
-      try {
+        `;
         const res = await fetch('https://api.morpho.org/graphql', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ query, variables: { address: addr } })
+          body: JSON.stringify({ query: morphoQuery, variables: { address: addr } })
         });
         const json = await res.json();
         const user = json?.data?.userByAddress;
-
-        const newMorphoRows = [];
-        let totalSup = 0, totalBor = 0;
 
         if (user) {
           (user.vaultPositions || []).forEach((v, idx) => {
             const usd = Math.round(parseFloat(v?.state?.assetsUsd || 0));
             if (usd > 1) {
-              const sym = v?.vault?.asset?.symbol || v?.vault?.symbol || 'Vault';
-              const vName = v?.vault?.name || sym;
               totalSup += usd;
-              newMorphoRows.push({
+              const sym = v?.vault?.asset?.symbol || v?.vault?.symbol || 'Vault';
+              newDeFiRows.push({
                 id: Date.now() + idx + 1,
-                name: `Morpho Vault Lend: ${vName} (${sym})`,
+                name: `Morpho Vault: ${v?.vault?.name || sym} (${sym})`,
                 bucket: 'Self-Custody DeFi',
                 custody: 'Cold / Self-Custody',
                 value: usd,
-                isMorpho: true
+                isDeFi: true
               });
             }
           });
@@ -883,16 +873,15 @@
           (user.vaultV2Positions || []).forEach((v2, idx) => {
             const usd = Math.round(parseFloat(v2?.assetsUsd || 0));
             if (usd > 1) {
-              const sym = v2?.vault?.asset?.symbol || v2?.vault?.symbol || 'Vault V2';
-              const vName = v2?.vault?.name || sym;
               totalSup += usd;
-              newMorphoRows.push({
+              const sym = v2?.vault?.asset?.symbol || v2?.vault?.symbol || 'Vault V2';
+              newDeFiRows.push({
                 id: Date.now() + idx + 100,
-                name: `Morpho V2 Lend: ${vName} (${sym})`,
+                name: `Morpho V2: ${v2?.vault?.name || sym} (${sym})`,
                 bucket: 'Self-Custody DeFi',
                 custody: 'Cold / Self-Custody',
                 value: usd,
-                isMorpho: true
+                isDeFi: true
               });
             }
           });
@@ -908,65 +897,128 @@
 
             if (supUsd > 1) {
               totalSup += supUsd;
-              newMorphoRows.push({
+              newDeFiRows.push({
                 id: Date.now() + idx + 200,
-                name: `Morpho Market Lend: ${loanSym} (${pair})`,
+                name: `Morpho Market Lend: ${pair}`,
                 bucket: 'Self-Custody DeFi',
                 custody: 'Cold / Self-Custody',
                 value: supUsd,
-                isMorpho: true
+                isDeFi: true
               });
             }
-
             if (colUsd > 1) {
               totalSup += colUsd;
               const isHardCol = ['WBTC','CBBTC','TBTC','WETH','WSTETH','RETH','WEETH'].includes(collSym.toUpperCase());
-              newMorphoRows.push({
+              newDeFiRows.push({
                 id: Date.now() + idx + 300,
-                name: `Morpho Collateral: ${collSym} (in ${pair})`,
+                name: `Morpho Collateral: ${collSym} (${pair})`,
                 bucket: isHardCol ? 'Hard Assets' : 'Self-Custody DeFi',
                 custody: 'Cold / Self-Custody',
                 value: colUsd,
-                isMorpho: true
+                isDeFi: true
               });
             }
-
             if (borUsd > 1) {
               totalBor += borUsd;
-              newMorphoRows.push({
+              newDeFiRows.push({
                 id: Date.now() + idx + 400,
-                name: `Morpho Margin Borrow: ${loanSym} Debt (vs ${collSym})`,
+                name: `Morpho Margin Borrow: ${loanSym} Debt vs ${collSym}`,
                 bucket: 'Margin / Borrow',
                 custody: 'Cold / Self-Custody',
                 value: borUsd,
-                isMorpho: true
+                isDeFi: true
               });
             }
           });
         }
+      } catch (e) {
+        console.warn('Morpho scan note:', e);
+      }
 
-        if (newMorphoRows.length > 0) {
-          state.positions = state.positions.filter(p => !p.isMorpho);
-          state.positions.push(...newMorphoRows);
-          state.defiStrategy = totalBor > 10 ? 'looped_borrow' : 'stable_lp';
+      // 2. SCAN PENDLE FINANCE (Ethereum Chain ID 1)
+      try {
+        const pendleRes = await fetch(`https://api-v2.pendle.finance/core/v1/1/users/${addr}/positions`);
+        const pendleJson = await pendleRes.json();
+        const pendleItems = pendleJson?.positions || pendleJson?.items || [];
+        
+        pendleItems.forEach((p, idx) => {
+          const usd = Math.round(parseFloat(p?.usdValue || p?.valueUsd || p?.balanceUsd || 0));
+          if (usd > 1) {
+            totalSup += usd;
+            const pName = p?.symbol || p?.market?.symbol || 'Pendle PT/YT Position';
+            newDeFiRows.push({
+              id: Date.now() + idx + 500,
+              name: `Pendle Yield/Principal: ${pName}`,
+              bucket: 'Self-Custody DeFi',
+              custody: 'Cold / Self-Custody',
+              value: usd,
+              isDeFi: true
+            });
+          }
+        });
+      } catch (e) {
+        console.warn('Pendle scan note:', e);
+      }
 
-          saveState();
-          syncControlsFromState();
-          render();
-          pushToFirebase(true);
-          badge.className = 'badge badge-green';
-          badge.innerText = `Morpho: +$${totalSup.toLocaleString()} / -$${totalBor.toLocaleString()}`;
-        } else {
-          badge.className = 'badge badge-amber';
-          badge.innerText = 'Morpho: $0 Found';
-          alert('Scanned Ethereum Mainnet for ' + addr.slice(0,8) + '... and found 0 positions > $1.');
+      // 3. SCAN MERKL (Angle Labs Rewards & LP Positions)
+      try {
+        const merklRes = await fetch(`https://api.merkl.xyz/v3/users?address=${addr}&chainId=1`);
+        const merklJson = await merklRes.json();
+        // Merkl returns user rewards and campaign positions
+        const unclaimedRewards = merklJson?.unclaimedRewards || merklJson?.rewards || [];
+        let totalRewardsUsd = 0;
+
+        if (Array.isArray(unclaimedRewards)) {
+          unclaimedRewards.forEach(r => {
+            totalRewardsUsd += parseFloat(r?.usdAmount || r?.amountUsd || 0);
+          });
+        } else if (typeof merklJson === 'object' && merklJson !== null) {
+          // Sum up reward values if object map
+          Object.values(merklJson).forEach(val => {
+            if (val && typeof val === 'object') {
+              totalRewardsUsd += parseFloat(val?.usdAmount || val?.amountUsd || 0);
+            }
+          });
+        }
+
+        const rewardsRounded = Math.round(totalRewardsUsd);
+        if (rewardsRounded > 0) {
+          totalSup += rewardsRounded;
+          newDeFiRows.push({
+            id: Date.now() + 700,
+            name: `Merkl Unclaimed Rewards / Incentives`,
+            bucket: 'Self-Custody DeFi',
+            custody: 'Cold / Self-Custody',
+            value: rewardsRounded,
+            isDeFi: true
+          });
         }
       } catch (e) {
-        badge.className = 'badge badge-red';
-        badge.innerText = 'Morpho API Error';
-        alert('Error connecting to api.morpho.org: ' + e.message);
+        console.warn('Merkl scan note:', e);
+      }
+
+      if (newDeFiRows.length > 0) {
+        // Remove old auto-synced DeFi rows and insert fresh ones
+        state.positions = state.positions.filter(p => !p.isDeFi);
+        state.positions.push(...newDeFiRows);
+        state.defiStrategy = totalBor > 10 ? 'looped_borrow' : 'stable_lp';
+
+        saveState();
+        syncControlsFromState();
+        render();
+        pushToFirebase(true);
+        badge.className = 'badge badge-green';
+        badge.innerText = `DeFi Synced: +$${totalSup.toLocaleString()}`;
+      } else {
+        badge.className = 'badge badge-amber';
+        badge.innerText = 'DeFi: $0 Found';
+        alert('Scanned Morpho, Pendle & Merkl on Ethereum for ' + addr.slice(0,8) + '... and found 0 active positions > $1.');
       }
     }
+
+    // Update the button click handler in the UI drawer
+    // Replace onclick="fetchMorphoBalance()" with onclick="fetchDeFiProtocols()" in your HTML if needed.
+
 
     function getFbUrl() {
       saveConnections();
@@ -1010,7 +1062,7 @@
       await pullFromFirebase();
       await fetchNYFed();
       if (conn.walletAddress && conn.walletAddress.startsWith('0x')) {
-        await fetchMorphoBalance();
+        await fetchDeFiProtocols();
       }
     }
 
