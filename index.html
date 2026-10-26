@@ -883,6 +883,83 @@
                 value: usd,
                 isDeFi: true
               });
+              
+        // --- UNIFIED MORPHO + PENDLE V2 + MERKL V4 ETHEREUM SCANNER ---
+    async function fetchMorphoBalance() {
+      saveConnections();
+      const addr = (conn.walletAddress || document.getElementById('walletAddress').value).trim();
+      const badge = document.getElementById('syncBadge');
+      if (!addr || !addr.startsWith('0x')) {
+        alert('Paste your public 0x wallet address in the Cloud & Morpho Setup drawer first.');
+        return;
+      }
+
+      const lowerAddr = addr.toLowerCase();
+      badge.className = 'badge badge-blue';
+      badge.innerText = 'Scanning Morpho, Pendle & Merkl...';
+
+      const newDeFiRows = [];
+      let totalSup = 0, totalBor = 0;
+      let counts = { morpho: 0, pendle: 0, merkl: 0 };
+
+      // 1. MORPHO BLUE (Ethereum Mainnet V1 Vaults, V2 Vaults & Markets)
+      try {
+        const morphoQuery = `
+          query GetDetailedMorphoEth($address: String!) {
+            userByAddress(chainId: 1, address: $address) {
+              vaultPositions {
+                state { assetsUsd }
+                vault { name symbol asset { symbol } }
+              }
+              vaultV2Positions {
+                assetsUsd
+                vault { name symbol asset { symbol } }
+              }
+              marketPositions {
+                state { supplyAssetsUsd borrowAssetsUsd collateralUsd }
+                market { loanAsset { symbol } collateralAsset { symbol } }
+              }
+            }
+          }
+        `;
+        const res = await fetch('https://api.morpho.org/graphql', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query: morphoQuery, variables: { address: addr } })
+        });
+        const json = await res.json();
+        const user = json?.data?.userByAddress;
+
+        if (user) {
+          (user.vaultPositions || []).forEach((v, idx) => {
+            const usd = Math.round(parseFloat(v?.state?.assetsUsd || 0));
+            if (usd > 1) {
+              totalSup += usd; counts.morpho++;
+              const sym = v?.vault?.asset?.symbol || v?.vault?.symbol || 'Vault';
+              newDeFiRows.push({
+                id: Date.now() + idx + 1,
+                name: `Morpho Vault Lend: ${v?.vault?.name || sym} (${sym})`,
+                bucket: 'Self-Custody DeFi',
+                custody: 'Cold / Self-Custody',
+                value: usd,
+                isMorpho: true
+              });
+            }
+          });
+
+          (user.vaultV2Positions || []).forEach((v2, idx) => {
+            const usd = Math.round(parseFloat(v2?.assetsUsd || 0));
+            if (usd > 1) {
+              totalSup += usd; counts.morpho++;
+              const sym = v2?.vault?.asset?.symbol || v2?.vault?.symbol || 'Vault V2';
+              newDeFiRows.push({
+                id: Date.now() + idx + 100,
+                name: `Morpho V2 Lend: ${v2?.vault?.name || sym} (${sym})`,
+                bucket: 'Self-Custody DeFi',
+                custody: 'Cold / Self-Custody',
+                value: usd,
+                isMorpho: true
+              });
             }
           });
 
@@ -896,110 +973,200 @@
             const borUsd = Math.round(parseFloat(m?.state?.borrowAssetsUsd || 0));
 
             if (supUsd > 1) {
-              totalSup += supUsd;
+              totalSup += supUsd; counts.morpho++;
               newDeFiRows.push({
                 id: Date.now() + idx + 200,
-                name: `Morpho Market Lend: ${pair}`,
+                name: `Morpho Market Lend: ${loanSym} (${pair})`,
                 bucket: 'Self-Custody DeFi',
                 custody: 'Cold / Self-Custody',
                 value: supUsd,
-                isDeFi: true
+                isMorpho: true
               });
             }
             if (colUsd > 1) {
-              totalSup += colUsd;
+              totalSup += colUsd; counts.morpho++;
               const isHardCol = ['WBTC','CBBTC','TBTC','WETH','WSTETH','RETH','WEETH'].includes(collSym.toUpperCase());
               newDeFiRows.push({
                 id: Date.now() + idx + 300,
-                name: `Morpho Collateral: ${collSym} (${pair})`,
+                name: `Morpho Collateral: ${collSym} (in ${pair})`,
                 bucket: isHardCol ? 'Hard Assets' : 'Self-Custody DeFi',
                 custody: 'Cold / Self-Custody',
                 value: colUsd,
-                isDeFi: true
+                isMorpho: true
               });
             }
             if (borUsd > 1) {
-              totalBor += borUsd;
+              totalBor += borUsd; counts.morpho++;
               newDeFiRows.push({
                 id: Date.now() + idx + 400,
-                name: `Morpho Margin Borrow: ${loanSym} Debt vs ${collSym}`,
+                name: `Morpho Margin Borrow: ${loanSym} Debt (vs ${collSym})`,
                 bucket: 'Margin / Borrow',
                 custody: 'Cold / Self-Custody',
                 value: borUsd,
-                isDeFi: true
+                isMorpho: true
               });
             }
           });
         }
       } catch (e) {
-        console.warn('Morpho scan note:', e);
+        console.warn('Morpho scan error:', e);
       }
 
-      // 2. SCAN PENDLE FINANCE (Ethereum Chain ID 1)
+      // 2. PENDLE V2 DASHBOARD POSITIONS API (/core/v1/dashboard/positions/database/{user})
       try {
-        const pendleRes = await fetch(`https://api-v2.pendle.finance/core/v1/1/users/${addr}/positions`);
-        const pendleJson = await pendleRes.json();
-        const pendleItems = pendleJson?.positions || pendleJson?.items || [];
-        
-        pendleItems.forEach((p, idx) => {
-          const usd = Math.round(parseFloat(p?.usdValue || p?.valueUsd || p?.balanceUsd || 0));
-          if (usd > 1) {
-            totalSup += usd;
-            const pName = p?.symbol || p?.market?.symbol || 'Pendle PT/YT Position';
-            newDeFiRows.push({
-              id: Date.now() + idx + 500,
-              name: `Pendle Yield/Principal: ${pName}`,
-              bucket: 'Self-Custody DeFi',
-              custody: 'Cold / Self-Custody',
-              value: usd,
-              isDeFi: true
+        const [posRes, marketsRes] = await Promise.all([
+          fetch(`https://api-v2.pendle.finance/core/v1/dashboard/positions/database/${lowerAddr}`),
+          fetch('https://api-v2.pendle.finance/core/v1/1/markets/active').catch(() => null)
+        ]);
+
+        // Build market/token symbol lookup table for Ethereum Mainnet
+        const symMap = {};
+        if (marketsRes && marketsRes.ok) {
+          const mJson = await marketsRes.json();
+          (mJson?.markets || mJson?.results || []).forEach(mk => {
+            const name = mk.name || mk.proSymbol || mk.symbol || 'Market';
+            if (mk.address) symMap[mk.address.toLowerCase()] = name;
+            if (mk.pt) symMap[String(mk.pt).toLowerCase().split('-').pop()] = `PT-${name}`;
+            if (mk.yt) symMap[String(mk.yt).toLowerCase().split('-').pop()] = `YT-${name}`;
+          });
+        }
+
+        if (posRes.ok) {
+          const pData = await posRes.json();
+          // Pendle returns chain-grouped positions[] -> openPositions[]
+          const topList = Array.isArray(pData) ? pData : (pData?.positions || pData?.results || [pData]);
+          let pIdx = 0;
+
+          topList.forEach(group => {
+            // Filter to Ethereum (chainId 1) if chainId is specified, or accept all
+            if (group?.chainId && Number(group.chainId) !== 1) return;
+
+            const openList = group?.openPositions || group?.positions || (group?.lp || group?.pt || group?.yt ? [group] : []);
+            openList.forEach(pos => {
+              const rawId = String(pos?.marketId || pos?.marketAddress || pos?.address || '').toLowerCase();
+              const cleanAddr = rawId.includes('-') ? rawId.split('-').pop() : rawId;
+              const mktLabel = pos?.symbol || pos?.name || symMap[cleanAddr] || (cleanAddr ? cleanAddr.slice(0, 8) : 'Pendle');
+
+              // Check sub-components (PT, YT, LP, SY) or direct valuation
+              const ptUsd = Math.round(parseFloat(pos?.pt?.valuation || pos?.pt?.valuationUsd || pos?.ptValuationUsd || 0));
+              const ytUsd = Math.round(parseFloat(pos?.yt?.valuation || pos?.yt?.valuationUsd || pos?.ytValuationUsd || 0));
+              const lpUsd = Math.round(parseFloat(pos?.lp?.valuation || pos?.lp?.valuationUsd || pos?.lpValuationUsd || 0));
+              const syUsd = Math.round(parseFloat(pos?.sy?.valuation || pos?.sy?.valuationUsd || 0));
+              const directUsd = Math.round(parseFloat(pos?.valuation || pos?.usdValue || pos?.balanceUsd || 0));
+
+              if (ptUsd > 1) {
+                totalSup += ptUsd; counts.pendle++; pIdx++;
+                newDeFiRows.push({
+                  id: Date.now() + 500 + pIdx,
+                  name: `Pendle PT (Fixed Yield): ${mktLabel}`,
+                  bucket: 'Self-Custody DeFi',
+                  custody: 'Cold / Self-Custody',
+                  value: ptUsd,
+                  isMorpho: true
+                });
+              }
+              if (ytUsd > 1) {
+                totalSup += ytUsd; counts.pendle++; pIdx++;
+                newDeFiRows.push({
+                  id: Date.now() + 500 + pIdx,
+                  name: `Pendle YT (Yield Token): ${mktLabel}`,
+                  bucket: 'Self-Custody DeFi',
+                  custody: 'Cold / Self-Custody',
+                  value: ytUsd,
+                  isMorpho: true
+                });
+              }
+              if (lpUsd > 1) {
+                totalSup += lpUsd; counts.pendle++; pIdx++;
+                newDeFiRows.push({
+                  id: Date.now() + 500 + pIdx,
+                  name: `Pendle LP Pool: ${mktLabel}`,
+                  bucket: 'Self-Custody DeFi',
+                  custody: 'Cold / Self-Custody',
+                  value: lpUsd,
+                  isMorpho: true
+                });
+              }
+              if (syUsd > 1) {
+                totalSup += syUsd; counts.pendle++; pIdx++;
+                newDeFiRows.push({
+                  id: Date.now() + 500 + pIdx,
+                  name: `Pendle SY: ${mktLabel}`,
+                  bucket: 'Self-Custody DeFi',
+                  custody: 'Cold / Self-Custody',
+                  value: syUsd,
+                  isMorpho: true
+                });
+              }
+              if (ptUsd <= 1 && ytUsd <= 1 && lpUsd <= 1 && syUsd <= 1 && directUsd > 1) {
+                totalSup += directUsd; counts.pendle++; pIdx++;
+                newDeFiRows.push({
+                  id: Date.now() + 500 + pIdx,
+                  name: `Pendle Position: ${mktLabel}`,
+                  bucket: 'Self-Custody DeFi',
+                  custody: 'Cold / Self-Custody',
+                  value: directUsd,
+                  isMorpho: true
+                });
+              }
             });
-          }
-        });
+          });
+        }
       } catch (e) {
-        console.warn('Pendle scan note:', e);
+        console.warn('Pendle V2 scan error:', e);
       }
 
-      // 3. SCAN MERKL (Angle Labs Rewards & LP Positions)
+      // 3. MERKL V4 REWARDS API (https://api.merkl.xyz/v4/users/{address}/rewards?chainId=1)
       try {
-        const merklRes = await fetch(`https://api.merkl.xyz/v3/users?address=${addr}&chainId=1`);
-        const merklJson = await merklRes.json();
-        // Merkl returns user rewards and campaign positions
-        const unclaimedRewards = merklJson?.unclaimedRewards || merklJson?.rewards || [];
-        let totalRewardsUsd = 0;
+        const merklRes = await fetch(`https://api.merkl.xyz/v4/users/${lowerAddr}/rewards?chainId=1`);
+        if (merklRes.ok) {
+          const merklData = await merklRes.json();
+          const chainEntries = Array.isArray(merklData) ? merklData : (merklData?.rewards ? [merklData] : []);
+          let rIdx = 0;
 
-        if (Array.isArray(unclaimedRewards)) {
-          unclaimedRewards.forEach(r => {
-            totalRewardsUsd += parseFloat(r?.usdAmount || r?.amountUsd || 0);
-          });
-        } else if (typeof merklJson === 'object' && merklJson !== null) {
-          // Sum up reward values if object map
-          Object.values(merklJson).forEach(val => {
-            if (val && typeof val === 'object') {
-              totalRewardsUsd += parseFloat(val?.usdAmount || val?.amountUsd || 0);
-            }
-          });
-        }
+          chainEntries.forEach(entry => {
+            (entry?.rewards || []).forEach(rw => {
+              const sym = rw?.token?.symbol || 'Reward';
+              const dec = Number(rw?.token?.decimals ?? 18);
+              const price = parseFloat(rw?.token?.price || rw?.price || 0);
 
-        const rewardsRounded = Math.round(totalRewardsUsd);
-        if (rewardsRounded > 0) {
-          totalSup += rewardsRounded;
-          newDeFiRows.push({
-            id: Date.now() + 700,
-            name: `Merkl Unclaimed Rewards / Incentives`,
-            bucket: 'Self-Custody DeFi',
-            custody: 'Cold / Self-Custody',
-            value: rewardsRounded,
-            isDeFi: true
+              // Merkl V4: claimable = amount - claimed (plus any pending not yet in root)
+              let unclaimedTokens = 0;
+              try {
+                const amtBig = BigInt(String(rw?.amount || '0').split('.')[0]);
+                const clmBig = BigInt(String(rw?.claimed || '0').split('.')[0]);
+                const pndBig = BigInt(String(rw?.pending || '0').split('.')[0]);
+                const netBig = (amtBig > clmBig ? amtBig - clmBig : 0n) + pndBig;
+                unclaimedTokens = Number(netBig) / Math.pow(10, dec);
+              } catch (err) {
+                unclaimedTokens = Math.max(0, (parseFloat(rw?.amount || 0) - parseFloat(rw?.claimed || 0)) / Math.pow(10, dec));
+              }
+
+              const usdVal = Math.round(
+                parseFloat(rw?.usdValue || rw?.amountUSD || 0) || (unclaimedTokens * price)
+              );
+
+              if (usdVal >= 1 || unclaimedTokens >= 0.01) {
+                const finalUsd = usdVal >= 1 ? usdVal : Math.max(1, Math.round(unclaimedTokens));
+                totalSup += finalUsd; counts.merkl++; rIdx++;
+                newDeFiRows.push({
+                  id: Date.now() + 800 + rIdx,
+                  name: `Merkl Claimable Reward: ${unclaimedTokens.toFixed(2)} ${sym}`,
+                  bucket: 'Self-Custody DeFi',
+                  custody: 'Cold / Self-Custody',
+                  value: finalUsd,
+                  isMorpho: true
+                });
+              }
+            });
           });
         }
       } catch (e) {
-        console.warn('Merkl scan note:', e);
+        console.warn('Merkl V4 scan error:', e);
       }
 
       if (newDeFiRows.length > 0) {
-        // Remove old auto-synced DeFi rows and insert fresh ones
-        state.positions = state.positions.filter(p => !p.isDeFi);
+        state.positions = state.positions.filter(p => !p.isMorpho && !p.isDeFi);
         state.positions.push(...newDeFiRows);
         state.defiStrategy = totalBor > 10 ? 'looped_borrow' : 'stable_lp';
 
@@ -1008,17 +1175,14 @@
         render();
         pushToFirebase(true);
         badge.className = 'badge badge-green';
-        badge.innerText = `DeFi Synced: +$${totalSup.toLocaleString()}`;
+        badge.innerText = `Synced (M:${counts.morpho} P:${counts.pendle} R:${counts.merkl}) +$${totalSup.toLocaleString()}`;
       } else {
         badge.className = 'badge badge-amber';
         badge.innerText = 'DeFi: $0 Found';
-        alert('Scanned Morpho, Pendle & Merkl on Ethereum for ' + addr.slice(0,8) + '... and found 0 active positions > $1.');
+        alert('Scanned Morpho, Pendle & Merkl on Ethereum for ' + addr.slice(0,8) + '... and found 0 positions.');
       }
     }
-
-    // Update the button click handler in the UI drawer
-    // Replace onclick="fetchMorphoBalance()" with onclick="fetchDeFiProtocols()" in your HTML if needed.
-
+    window.fetchDeFiProtocols = fetchMorphoBalance;
 
     function getFbUrl() {
       saveConnections();
