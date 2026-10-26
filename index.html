@@ -533,12 +533,13 @@
 
     <div class="add-row">
       <input type="text" id="inName" placeholder="Instrument name (e.g. Morpho USDC Vault)">
-      <select id="inBucket">
-        <option value="Hard Assets">Hard Assets</option>
-        <option value="Dry Powder">Dry Powder</option>
-        <option value="Equities">Equities</option>
-        <option value="Self-Custody DeFi">Self-Custody DeFi</option>
-      </select>
+            <select id="inBucket">
+        <option value="Hard Assets">Hard Assets (1x Spot)</option>
+        <option value="Dry Powder">Dry Powder (T-Bills/Cash)</option>
+        <option value="Equities">Equities / Real Assets</option>
+        <option value="Self-Custody DeFi">Self-Custody DeFi (1x Lend/Vault)</option>
+        <option value="Margin / Borrow">Margin / Borrow (Debt & Loops)</option>
+            </select>
       <select id="inCustody">
         <option value="Cold / Self-Custody">Cold / Self-Custody</option>
         <option value="Direct Treasury">Direct Treasury</option>
@@ -715,9 +716,18 @@
         stressSub.innerText = 'Calm Plumbing — Phase 1';
       }
 
-      // Portfolio Calculations
-      const totalVal = state.positions.reduce((s, p) => s + p.value, 0) || 1;
-      const bucketTotals = { 'Dry Powder': 0, 'Hard Assets': 0, 'Equities': 0, 'Self-Custody DeFi': 0 };
+            // Portfolio Calculations (Separates 1x Spot/Lend from Margin/Borrow Debt)
+      const totalVal = state.positions.reduce((s, p) => {
+        return p.bucket === 'Margin / Borrow' ? s - p.value : s + p.value;
+      }, 0) || 1;
+
+      const bucketTotals = {
+        'Dry Powder': 0,
+        'Hard Assets': 0,
+        'Equities': 0,
+        'Self-Custody DeFi': 0,
+        'Margin / Borrow': 0
+      };
       let custodialVal = 0;
 
       state.positions.forEach(p => {
@@ -725,10 +735,23 @@
         if (p.custody === 'Custodial Exchange') custodialVal += p.value;
       });
 
-      const directPct = Math.round(((totalVal - custodialVal) / totalVal) * 100);
+      const directPct = Math.max(0, Math.round(((totalVal - custodialVal) / totalVal) * 100));
+      const borrowTotal = bucketTotals['Margin / Borrow'] || 0;
       document.getElementById('portfolioTotalSub').innerText =
-        `Total Portfolio Value: $${totalVal.toLocaleString()} | ${directPct}% Direct / Cold Self-Custody Hygiene`;
+        `Net Portfolio Equity: $${totalVal.toLocaleString()} | Active Margin/Borrow Debt: $${borrowTotal.toLocaleString()} | ${directPct}% Self-Custody Hygiene`;
 
+      // Phase Target Weights (Target for Margin / Borrow is always 0%)
+      let targets = { 'Dry Powder': 35, 'Hard Assets': 40, 'Equities': 17, 'Self-Custody DeFi': 8, 'Margin / Borrow': 0 };
+      if (activePhase === 2) {
+        const defiTarget = state.defiStrategy === 'native_staking' ? 8 : 0;
+        targets = { 'Dry Powder': 15, 'Hard Assets': 60 - defiTarget, 'Equities': 25, 'Self-Custody DeFi': defiTarget, 'Margin / Borrow': 0 };
+      } else if (activePhase === 3) {
+        targets = { 'Dry Powder': 5, 'Hard Assets': 62, 'Equities': 25, 'Self-Custody DeFi': 8, 'Margin / Borrow': 0 };
+      }
+
+      // Render Grouped Bars (Includes Margin / Borrow)
+      const bucketsOrder = ['Dry Powder', 'Hard Assets', 'Equities', 'Self-Custody DeFi', 'Margin / Borrow'];
+      
       // Phase Target Weights
       let targets = { 'Dry Powder': 35, 'Hard Assets': 40, 'Equities': 17, 'Self-Custody DeFi': 8 };
       if (activePhase === 2) {
@@ -836,17 +859,21 @@
         dBody.innerText = `Overnight repo is calm (${spSign}${state.sofrSpreadBps} bps). Keep Dry Powder near 35% in 1–3M T-Bills and Core Cold BTC at 40% while waiting for Phase 2 discounts.`;
       }
 
-      // Render Positions Table
+      // Render Positions Table (Highlights Margin/Borrow vs 1x Spot/Lend)
       const tbody = document.getElementById('positionsBody');
       tbody.innerHTML = state.positions.map(p => {
+        const isDebt = p.bucket === 'Margin / Borrow';
         const w = ((p.value / totalVal) * 100).toFixed(1);
+        const badgeClass = isDebt ? 'badge-red' : p.bucket === 'Self-Custody DeFi' ? 'badge-green' : 'badge-blue';
+        const valPrefix = isDebt ? '-$' : '$';
+        const valColor = isDebt ? 'color:var(--red); font-weight:700;' : '';
         return `
           <tr>
             <td style="font-weight:600;">${p.name}</td>
-            <td><span class="badge badge-blue">${p.bucket}</span></td>
+            <td><span class="badge ${badgeClass}">${p.bucket}</span></td>
             <td>${p.custody}</td>
-            <td class="mono">$${p.value.toLocaleString()}</td>
-            <td class="mono">${w}%</td>
+            <td class="mono" style="${valColor}">${valPrefix}${p.value.toLocaleString()}</td>
+            <td class="mono" style="${valColor}">${isDebt ? '-' : ''}${w}%</td>
             <td><button class="btn btn-del" onclick="removePos(${p.id})">✕</button></td>
           </tr>
         `;
@@ -904,7 +931,7 @@
       }
     }
 
-    // LIVE MORPHO ETHEREUM MAINNET SCANNER (Supports V1 Vaults, V2 Vaults & Markets)
+    // DETAILED MORPHO ETHEREUM SCANNER (Splits Vaults, Lend, Collateral & Borrow by Asset)
     async function fetchMorphoBalance() {
       saveConnections();
       const addr = (conn.walletAddress || document.getElementById('walletAddress').value).trim();
@@ -917,16 +944,22 @@
       badge.innerText = 'Scanning Ethereum Morpho...';
 
       const query = `
-        query GetUserEthMorpho($address: String!) {
+        query GetDetailedMorphoEth($address: String!) {
           userByAddress(chainId: 1, address: $address) {
             vaultPositions {
               state { assetsUsd }
+              vault { name symbol asset { symbol } }
             }
             vaultV2Positions {
               assetsUsd
+              vault { name symbol asset { symbol } }
             }
             marketPositions {
               state { supplyAssetsUsd borrowAssetsUsd collateralUsd }
+              market {
+                loanAsset { symbol }
+                collateralAsset { symbol }
+              }
             }
           }
         }
@@ -941,47 +974,114 @@
         const json = await res.json();
         const user = json?.data?.userByAddress;
 
-        let supply = 0, borrow = 0;
+        const newMorphoRows = [];
+        let totalSup = 0, totalBor = 0;
+
         if (user) {
-          (user.vaultPositions || []).forEach(v => {
-            supply += parseFloat(v?.state?.assetsUsd || 0);
+          // 1. V1 MetaMorpho Vaults (Lend)
+          (user.vaultPositions || []).forEach((v, idx) => {
+            const usd = Math.round(parseFloat(v?.state?.assetsUsd || 0));
+            if (usd > 1) {
+              const sym = v?.vault?.asset?.symbol || v?.vault?.symbol || 'Vault';
+              const vName = v?.vault?.name || sym;
+              totalSup += usd;
+              newMorphoRows.push({
+                id: Date.now() + idx + 1,
+                name: `Morpho Vault Lend: ${vName} (${sym})`,
+                bucket: 'Self-Custody DeFi',
+                custody: 'Cold / Self-Custody',
+                value: usd,
+                isMorpho: true
+              });
+            }
           });
-          (user.vaultV2Positions || []).forEach(v2 => {
-            supply += parseFloat(v2?.assetsUsd || 0);
+
+          // 2. V2 Vaults (Lend)
+          (user.vaultV2Positions || []).forEach((v2, idx) => {
+            const usd = Math.round(parseFloat(v2?.assetsUsd || 0));
+            if (usd > 1) {
+              const sym = v2?.vault?.asset?.symbol || v2?.vault?.symbol || 'Vault V2';
+              const vName = v2?.vault?.name || sym;
+              totalSup += usd;
+              newMorphoRows.push({
+                id: Date.now() + idx + 100,
+                name: `Morpho V2 Lend: ${vName} (${sym})`,
+                bucket: 'Self-Custody DeFi',
+                custody: 'Cold / Self-Custody',
+                value: usd,
+                isMorpho: true
+              });
+            }
           });
-          (user.marketPositions || []).forEach(m => {
-            supply += parseFloat(m?.state?.supplyAssetsUsd || 0) + parseFloat(m?.state?.collateralUsd || 0);
-            borrow += parseFloat(m?.state?.borrowAssetsUsd || 0);
+
+          // 3. Direct Market Positions (Split into Direct Lend, Collateral, and Margin Borrow)
+          (user.marketPositions || []).forEach((m, idx) => {
+            const loanSym = m?.market?.loanAsset?.symbol || 'Loan';
+            const collSym = m?.market?.collateralAsset?.symbol || 'Collateral';
+            const pair = `${collSym}/${loanSym}`;
+
+            const supUsd = Math.round(parseFloat(m?.state?.supplyAssetsUsd || 0));
+            const colUsd = Math.round(parseFloat(m?.state?.collateralUsd || 0));
+            const borUsd = Math.round(parseFloat(m?.state?.borrowAssetsUsd || 0));
+
+            if (supUsd > 1) {
+              totalSup += supUsd;
+              newMorphoRows.push({
+                id: Date.now() + idx + 200,
+                name: `Morpho Market Lend: ${loanSym} (${pair})`,
+                bucket: 'Self-Custody DeFi',
+                custody: 'Cold / Self-Custody',
+                value: supUsd,
+                isMorpho: true
+              });
+            }
+
+            if (colUsd > 1) {
+              totalSup += colUsd;
+              // Classify BTC/ETH/wstETH collateral as Hard Assets or DeFi Collateral
+              const isHardCol = ['WBTC','CBBTC','TBTC','WETH','WSTETH','RETH','WEETH'].includes(collSym.toUpperCase());
+              newMorphoRows.push({
+                id: Date.now() + idx + 300,
+                name: `Morpho Collateral: ${collSym} (in ${pair})`,
+                bucket: isHardCol ? 'Hard Assets' : 'Self-Custody DeFi',
+                custody: 'Cold / Self-Custody',
+                value: colUsd,
+                isMorpho: true
+              });
+            }
+
+            if (borUsd > 1) {
+              totalBor += borUsd;
+              newMorphoRows.push({
+                id: Date.now() + idx + 400,
+                name: `Morpho Margin Borrow: ${loanSym} Debt (against ${collSym})`,
+                bucket: 'Margin / Borrow',
+                custody: 'Cold / Self-Custody',
+                value: borUsd,
+                isMorpho: true
+              });
+            }
           });
         }
 
-        const net = Math.round(supply - borrow);
-        state.defiStrategy = borrow > 10 ? 'looped_borrow' : 'stable_lp';
+        if (newMorphoRows.length > 0) {
+          // Remove ONLY previous auto-synced Morpho rows; keep all manual positions intact!
+          state.positions = state.positions.filter(p => !p.isMorpho);
+          state.positions.push(...newMorphoRows);
 
-        if (net > 0) {
-          const row = state.positions.find(p => p.bucket === 'Self-Custody DeFi');
-          if (row) {
-            row.name = `Morpho Eth (${addr.slice(0,6)}...)`;
-            row.value = net;
-          } else {
-            state.positions.push({
-              id: Date.now(),
-              name: `Morpho Eth (${addr.slice(0,6)}...)`,
-              bucket: 'Self-Custody DeFi',
-              custody: 'Cold / Self-Custody',
-              value: net
-            });
-          }
+          // Automatically flip strategy warning if active borrow exists
+          state.defiStrategy = totalBor > 10 ? 'looped_borrow' : 'stable_lp';
+
           saveState();
           syncControlsFromState();
           render();
           pushToFirebase(true);
           badge.className = 'badge badge-green';
-          badge.innerText = `Morpho: $${net.toLocaleString()}`;
+          badge.innerText = `Morpho: +$${totalSup.toLocaleString()} / -$${totalBor.toLocaleString()}`;
         } else {
           badge.className = 'badge badge-amber';
           badge.innerText = 'Morpho: $0 Found';
-          alert('Scanned Ethereum Mainnet (V1 Vaults, V2 Vaults & Markets) for ' + addr.slice(0,8) + '... and found $0.');
+          alert('Scanned Ethereum Mainnet for ' + addr.slice(0,8) + '... and found 0 positions > $1.');
         }
       } catch (e) {
         badge.className = 'badge badge-red';
