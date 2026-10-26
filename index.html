@@ -15,7 +15,6 @@
       --text-main: #f8fafc;
       --text-muted: #94a3b8;
       --blue: #38bdf8;
-      --indigo: #6366f1;
       --amber: #f59e0b;
       --red: #ef4444;
       --green: #10b981;
@@ -34,7 +33,6 @@
       margin: 0 auto;
     }
 
-    /* Top Telemetry Header */
     .top-header {
       display: flex;
       justify-content: space-between;
@@ -55,24 +53,12 @@
       display: flex;
       align-items: center;
       gap: 8px;
+      flex-wrap: wrap;
     }
-    .main-title {
-      font-size: 1.45rem;
-      font-weight: 800;
-      letter-spacing: -0.02em;
-      color: var(--text-main);
-    }
-    .header-right {
-      display: flex;
-      flex-direction: column;
-      align-items: flex-end;
-      gap: 8px;
-    }
-    @media (max-width: 720px) {
-      .header-right { align-items: flex-start; width: 100%; }
-    }
+    .main-title { font-size: 1.45rem; font-weight: 800; letter-spacing: -0.02em; }
+    .header-right { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+    @media (max-width: 720px) { .header-right { align-items: flex-start; width: 100%; } }
 
-    /* Phase Banner Pill */
     .phase-pill {
       display: inline-flex;
       align-items: center;
@@ -87,7 +73,6 @@
     .phase-2 { background: rgba(239, 68, 68, 0.18); color: #fca5a5; border-color: rgba(239, 68, 68, 0.5); }
     .phase-3 { background: rgba(16, 185, 129, 0.18); color: #6ee7b7; border-color: rgba(16, 185, 129, 0.5); }
 
-    /* Cloud Sync Drawer */
     .sync-drawer {
       background: var(--bg-card);
       border: 1px solid var(--border);
@@ -105,7 +90,6 @@
     }
     @media (max-width: 820px) { .sync-grid { grid-template-columns: 1fr; } }
 
-    /* 4 KPI Telemetry Cards */
     .kpi-grid {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
@@ -121,24 +105,10 @@
       border-radius: 10px;
       padding: 14px;
     }
-    .kpi-label {
-      font-size: 0.75rem;
-      color: var(--text-muted);
-      font-weight: 600;
-      margin-bottom: 6px;
-    }
-    .kpi-val {
-      font-size: 1.3rem;
-      font-weight: 800;
-      font-family: var(--font-mono);
-      margin-bottom: 4px;
-    }
-    .kpi-sub {
-      font-size: 0.73rem;
-      color: var(--text-muted);
-    }
+    .kpi-label { font-size: 0.75rem; color: var(--text-muted); font-weight: 600; margin-bottom: 6px; }
+    .kpi-val { font-size: 1.3rem; font-weight: 800; font-family: var(--font-mono); margin-bottom: 4px; }
+    .kpi-sub { font-size: 0.73rem; color: var(--text-muted); }
 
-    /* Section Card Wrapper */
     .card {
       background: var(--bg-card);
       border: 1px solid var(--border);
@@ -154,10 +124,9 @@
       gap: 8px;
       margin-bottom: 14px;
     }
-    .card-title { font-size: 0.98rem; font-weight: 700; color: var(--text-main); }
+    .card-title { font-size: 0.98rem; font-weight: 700; }
     .card-subtitle { font-size: 0.78rem; color: var(--text-muted); }
 
-    /* Simulator Sliders */
     .sliders-grid {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
@@ -172,22 +141,10 @@
       border-radius: 8px;
       padding: 12px;
     }
-    .slider-top {
-      display: flex;
-      justify-content: space-between;
-      font-size: 0.8rem;
-      font-weight: 600;
-      margin-bottom: 8px;
-    }
+    .slider-top { display: flex; justify-content: space-between; font-size: 0.8rem; font-weight: 600; margin-bottom: 8px; }
     .slider-val { color: var(--blue); font-family: var(--font-mono); font-weight: 700; }
-    input[type="range"] {
-      width: 100%;
-      accent-color: var(--blue);
-      cursor: pointer;
-      height: 22px;
-    }
+    input[type="range"] { width: 100%; accent-color: var(--blue); cursor: pointer; height: 22px; }
 
-    /* Strategy Pill Selector Bar */
     .strategy-row {
       display: flex;
       justify-content: space-between;
@@ -197,11 +154,7 @@
       padding-top: 12px;
       border-top: 1px solid var(--border);
     }
-    .pill-group {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-    }
+    .pill-group { display: flex; flex-wrap: wrap; gap: 6px; }
     .strat-btn {
       background: var(--bg-sub);
       color: var(--text-muted);
@@ -211,7 +164,6 @@
       font-size: 0.78rem;
       font-weight: 600;
       cursor: pointer;
-      transition: all 0.15s;
     }
     .strat-btn.active {
       background: rgba(56, 189, 248, 0.18);
@@ -233,89 +185,41 @@
     }
     .qe-toggle input { width: 16px; height: 16px; accent-color: var(--green); }
 
-    /* Grouped Horizontal Bar Chart (Actual vs Phase Target) */
-    .chart-legend {
-      display: flex;
-      gap: 16px;
-      font-size: 0.78rem;
-      color: var(--text-muted);
-    }
+    .chart-legend { display: flex; gap: 16px; font-size: 0.78rem; color: var(--text-muted); }
     .legend-item { display: flex; align-items: center; gap: 6px; }
     .swatch { width: 12px; height: 12px; border-radius: 3px; }
     .swatch-actual { background: var(--blue); }
     .swatch-target { background: #64748b; border: 1px dashed #cbd5e1; }
 
-    .bar-group {
-      margin-bottom: 14px;
-    }
-    .bar-group-header {
-      display: flex;
-      justify-content: space-between;
-      font-size: 0.82rem;
-      font-weight: 600;
-      margin-bottom: 5px;
-    }
-    .bar-track {
-      position: relative;
-      background: #0f172a;
-      height: 12px;
-      border-radius: 4px;
-      overflow: hidden;
-      margin-bottom: 4px;
-    }
-    .bar-fill-actual {
-      height: 100%;
-      background: linear-gradient(90deg, #0284c7, #38bdf8);
-      border-radius: 4px;
-      transition: width 0.3s ease;
-    }
-    .bar-fill-target {
-      height: 100%;
-      background: #475569;
-      border-radius: 4px;
-      transition: width 0.3s ease;
-    }
+    .bar-group { margin-bottom: 13px; }
+    .bar-group-header { display: flex; justify-content: space-between; font-size: 0.81rem; font-weight: 600; margin-bottom: 5px; }
+    .bar-track { background: #0f172a; height: 11px; border-radius: 4px; overflow: hidden; margin-bottom: 4px; }
+    .bar-fill-actual { height: 100%; background: linear-gradient(90deg, #0284c7, #38bdf8); border-radius: 4px; transition: width 0.3s ease; }
+    .bar-fill-debt { height: 100%; background: linear-gradient(90deg, #b91c1c, #ef4444); border-radius: 4px; transition: width 0.3s ease; }
+    .bar-fill-target { height: 100%; background: #475569; border-radius: 4px; transition: width 0.3s ease; }
 
-    /* Two-Column Monitor & Directive */
-    .dual-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 16px;
-      margin-bottom: 16px;
-    }
+    .dual-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
     @media (max-width: 780px) { .dual-grid { grid-template-columns: 1fr; } }
 
-    .alert-box {
-      border-radius: 10px;
-      padding: 16px;
-      border: 1px solid var(--border);
-      background: var(--bg-card);
-    }
+    .alert-box { border-radius: 10px; padding: 16px; border: 1px solid var(--border); background: var(--bg-card); }
     .alert-box.status-green { border-left: 4px solid var(--green); }
     .alert-box.status-amber { border-left: 4px solid var(--amber); }
     .alert-box.status-red { border-left: 4px solid var(--red); background: rgba(239, 68, 68, 0.06); }
 
-    .badge {
-      padding: 3px 8px;
-      border-radius: 4px;
-      font-size: 0.72rem;
-      font-weight: 700;
-      font-family: var(--font-mono);
-    }
+    .badge { padding: 3px 8px; border-radius: 4px; font-size: 0.72rem; font-weight: 700; font-family: var(--font-mono); }
     .badge-green { background: rgba(16, 185, 129, 0.18); color: #6ee7b7; border: 1px solid rgba(16, 185, 129, 0.4); }
     .badge-amber { background: rgba(245, 158, 11, 0.18); color: #fcd34d; border: 1px solid rgba(245, 158, 11, 0.4); }
     .badge-red { background: rgba(239, 68, 68, 0.2); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.45); }
     .badge-blue { background: rgba(56, 189, 248, 0.18); color: var(--blue); border: 1px solid rgba(56, 189, 248, 0.4); }
 
-    /* Positions Table */
-    table { width: 100%; border-collapse: collapse; font-size: 0.84rem; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.83rem; }
     th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--border); }
-    th { color: var(--text-muted); font-size: 0.73rem; text-transform: uppercase; letter-spacing: 0.04em; }
+    th { color: var(--text-muted); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; }
     .mono { font-family: var(--font-mono); }
 
     .add-row {
       display: grid;
-      grid-template-columns: 1.6fr 1.2fr 1.2fr 1fr auto;
+      grid-template-columns: 1.6fr 1.3fr 1.2fr 1fr auto;
       gap: 8px;
       margin-top: 14px;
       padding-top: 12px;
@@ -329,7 +233,7 @@
       border: 1px solid var(--border);
       padding: 8px 10px;
       border-radius: 6px;
-      font-size: 0.83rem;
+      font-size: 0.82rem;
       width: 100%;
     }
     .btn {
@@ -353,7 +257,7 @@
   <div class="top-header">
     <div>
       <div class="eyebrow">
-        <span id="liveDateHeader">Oct 25, 2026 — Month 0 of 36 (NY Fed Live Telemetry)</span>
+        <span id="liveDateHeader">Oct 26, 2026 — Month 0 of 36 (NY Fed Live Telemetry)</span>
         <span id="syncBadge" class="badge badge-blue">Ready</span>
       </div>
       <div class="main-title">Macro Collateral & DeFi Command</div>
@@ -365,7 +269,7 @@
       <div style="display:flex; gap:6px; flex-wrap:wrap;">
         <button class="btn" onclick="toggleDrawer()">⚙️ Cloud & Morpho Setup</button>
         <button class="btn btn-primary" onclick="refreshAllFeeds()">🔄 Sync NY Fed & Morpho</button>
-        <button class="btn" onclick="resetBaseline()">↺ Reset $100k Baseline</button>
+        <button class="btn" onclick="resetBaseline()">↺ Reset Baseline</button>
       </div>
     </div>
   </div>
@@ -373,7 +277,7 @@
   <!-- COLLAPSIBLE CLOUD & MORPHO DRAWER -->
   <div id="syncDrawer" class="sync-drawer">
     <div style="font-size:0.82rem; font-weight:700; margin-bottom:10px; color:var(--blue);">
-      ☁️ Firebase Realtime DB & Read-Only Morpho Blue Wallet Scanner (Saved on Device)
+      ☁️ Firebase Realtime DB & Ethereum Morpho Blue Scanner (Splits Vaults, Lend, Collateral & Borrow)
     </div>
     <div class="sync-grid">
       <div>
@@ -381,12 +285,12 @@
         <input type="text" id="firebaseUrl" placeholder="https://macro-command-centre-default-rtdb.firebaseio.com/" onchange="saveConnections()">
       </div>
       <div>
-        <label style="font-size:0.72rem; color:var(--text-muted); display:block; margin-bottom:4px;">Public EVM Address (0x... scans Morpho on Eth, Base, Arb)</label>
+        <label style="font-size:0.72rem; color:var(--text-muted); display:block; margin-bottom:4px;">Ethereum Wallet Address (0x... Read-Only Morpho Scan)</label>
         <input type="text" id="walletAddress" placeholder="0x..." onchange="saveConnections()">
       </div>
-      <div style="display:flex; gap:6px;">
+      <div style="display:flex; gap:6px; flex-wrap:wrap;">
         <button class="btn btn-primary" onclick="fetchMorphoBalance()">⚡ Scan Morpho</button>
-        <button class="btn" onclick="pushToFirebase()">☁️ Save Cloud</button>
+        <button class="btn" onclick="pushToFirebase(false)">☁️ Save Cloud</button>
         <button class="btn" onclick="pullFromFirebase()">📥 Load Cloud</button>
       </div>
     </div>
@@ -460,8 +364,8 @@
         Self-Custody DeFi Strategy Mechanism (Applies to DeFi Bucket):
       </div>
       <div class="pill-group">
-        <button class="strat-btn active" id="btn_perp_funding" onclick="setStrategy('perp_funding')">Perp DEX / Funding Rate</button>
-        <button class="strat-btn" id="btn_stable_lp" onclick="setStrategy('stable_lp')">Stablecoin Lending / LP (Morpho)</button>
+        <button class="strat-btn" id="btn_perp_funding" onclick="setStrategy('perp_funding')">Perp DEX / Funding Rate</button>
+        <button class="strat-btn active" id="btn_stable_lp" onclick="setStrategy('stable_lp')">Stablecoin Lending / LP (Morpho)</button>
         <button class="strat-btn" id="btn_native_staking" onclick="setStrategy('native_staking')">Native 1x Spot Staking</button>
         <button class="strat-btn" id="btn_looped_borrow" onclick="setStrategy('looped_borrow')">Looped / Borrowed Margin</button>
       </div>
@@ -473,7 +377,7 @@
     <div class="card-header">
       <div>
         <div class="card-title">Portfolio Allocation vs. Phase Target Weights (%)</div>
-        <div class="card-subtitle" id="portfolioTotalSub">Total Portfolio Value: $100,000 | 100% Direct / Cold Self-Custody Hygiene</div>
+        <div class="card-subtitle" id="portfolioTotalSub">Net Portfolio Equity: $100,000 | Active Margin/Borrow Debt: $0 | 100% Self-Custody Hygiene</div>
       </div>
       <div class="chart-legend">
         <div class="legend-item"><span class="swatch swatch-actual"></span> Actual Bucket Weight (%)</div>
@@ -490,9 +394,7 @@
         <div class="card-title">DeFi Contagion Monitor</div>
         <span id="contagionBadge" class="badge badge-green">Optimal Harvest</span>
       </div>
-      <div id="contagionStrategyTitle" style="font-size:0.85rem; font-weight:700; color:var(--blue); margin-bottom:6px;">
-        Perp DEX / Delta-Neutral (1x Self-Custody)
-      </div>
+      <div id="contagionStrategyTitle" style="font-size:0.85rem; font-weight:700; color:var(--blue); margin-bottom:6px;"></div>
       <div id="contagionBody" style="font-size:0.82rem; color:var(--text-muted);"></div>
     </div>
 
@@ -510,8 +412,8 @@
   <div class="card">
     <div class="card-header">
       <div>
-        <div class="card-title">Self-Custody & Direct Treasury Positions</div>
-        <div class="card-subtitle">Add or remove positions to test live allocation drift against active macro phase</div>
+        <div class="card-title">Self-Custody, DeFi Lend & Margin Borrow Positions</div>
+        <div class="card-subtitle">Morpho scans add separate Vault Lend, Collateral, and Borrow rows without overwriting your manual entries</div>
       </div>
     </div>
 
@@ -520,7 +422,7 @@
         <thead>
           <tr>
             <th>Position / Instrument</th>
-            <th>Bucket</th>
+            <th>Bucket / Category</th>
             <th>Custody Hygiene</th>
             <th>Value (USD)</th>
             <th>Weight</th>
@@ -532,14 +434,14 @@
     </div>
 
     <div class="add-row">
-      <input type="text" id="inName" placeholder="Instrument name (e.g. Morpho USDC Vault)">
-            <select id="inBucket">
+      <input type="text" id="inName" placeholder="Instrument name (e.g. Cold BTC, T-Bills)">
+      <select id="inBucket">
         <option value="Hard Assets">Hard Assets (1x Spot)</option>
         <option value="Dry Powder">Dry Powder (T-Bills/Cash)</option>
         <option value="Equities">Equities / Real Assets</option>
         <option value="Self-Custody DeFi">Self-Custody DeFi (1x Lend/Vault)</option>
         <option value="Margin / Borrow">Margin / Borrow (Debt & Loops)</option>
-            </select>
+      </select>
       <select id="inCustody">
         <option value="Cold / Self-Custody">Cold / Self-Custody</option>
         <option value="Direct Treasury">Direct Treasury</option>
@@ -551,8 +453,8 @@
   </div>
 
   <script>
-    const STORAGE_KEY = 'macro_defi_command_v3';
-    const CONN_KEY = 'macro_defi_conn_v3';
+    const STORAGE_KEY = 'macro_defi_command_v5';
+    const CONN_KEY = 'macro_defi_conn_v5';
 
     function calcRealMonthOffset() {
       const now = new Date();
@@ -571,8 +473,7 @@
       positions: [
         { id: 1, name: '1-3 Month Treasury Bills (3.88% Yield)', bucket: 'Dry Powder', custody: 'Direct Treasury', value: 35000 },
         { id: 2, name: 'Bitcoin (Hardware Cold Storage)', bucket: 'Hard Assets', custody: 'Cold / Self-Custody', value: 40000 },
-        { id: 3, name: 'Self-Custody DeFi Yield (Morpho)', bucket: 'Self-Custody DeFi', custody: 'Cold / Self-Custody', value: 8000 },
-        { id: 4, name: 'Physical Bullion & Energy Equities', bucket: 'Equities', custody: 'Direct Treasury', value: 17000 }
+        { id: 3, name: 'Physical Bullion & Energy Equities', bucket: 'Equities', custody: 'Direct Treasury', value: 17000 }
       ]
     };
 
@@ -613,6 +514,7 @@
     }
 
     function resetBaseline() {
+      if (!confirm('Reset positions and sliders to baseline?')) return;
       state = JSON.parse(JSON.stringify(baselineState));
       saveState();
       syncControlsFromState();
@@ -665,12 +567,10 @@
       document.getElementById('lblSpread').innerText = `${spSign}${state.sofrSpreadBps} bps`;
       document.getElementById('lblSrf').innerText = `$${state.srfUsageBillions.toFixed(1)}B`;
 
-      // Stress Formula matching preview
       const l1 = Math.min(10, Math.max(1, (state.sofrSpreadBps + 5) / 2.5));
       const l2 = Math.min(10, state.srfUsageBillions / 7.5);
       const stressScore = Math.round((l1 * 0.40 + l2 * 0.30 + 7.8 * 0.30) * 10);
 
-      // Active Phase Determination
       let activePhase = 1;
       if (state.slrRelief || state.monthOffset >= 21) {
         activePhase = 3;
@@ -682,7 +582,6 @@
         activePhase = 2;
       }
 
-      // Update Top Phase Pill
       const pill = document.getElementById('phaseBannerPill');
       if (activePhase === 1) {
         pill.className = 'phase-pill phase-1';
@@ -695,7 +594,6 @@
         pill.innerText = '🚀 Phase 3: Central Bank QE Pivot — Max Scarce Hard Assets';
       }
 
-      // Update 4 KPI Cards
       const impliedSofr = (state.effrRate + state.sofrSpreadBps / 100).toFixed(2);
       document.getElementById('kpiEffrLabel').innerText = `SOFR vs EFFR (${state.effrRate.toFixed(2)}%)`;
       document.getElementById('kpiSofrVal').innerText = `${impliedSofr}% (${spSign}${state.sofrSpreadBps} bps)`;
@@ -716,11 +614,7 @@
         stressSub.innerText = 'Calm Plumbing — Phase 1';
       }
 
-            // Portfolio Calculations (Separates 1x Spot/Lend from Margin/Borrow Debt)
-      const totalVal = state.positions.reduce((s, p) => {
-        return p.bucket === 'Margin / Borrow' ? s - p.value : s + p.value;
-      }, 0) || 1;
-
+      // Portfolio Calculations (Separates 1x Spot/Lend from Margin/Borrow Debt)
       const bucketTotals = {
         'Dry Powder': 0,
         'Hard Assets': 0,
@@ -735,12 +629,14 @@
         if (p.custody === 'Custodial Exchange') custodialVal += p.value;
       });
 
-      const directPct = Math.max(0, Math.round(((totalVal - custodialVal) / totalVal) * 100));
+      const grossAssets = bucketTotals['Dry Powder'] + bucketTotals['Hard Assets'] + bucketTotals['Equities'] + bucketTotals['Self-Custody DeFi'];
       const borrowTotal = bucketTotals['Margin / Borrow'] || 0;
-      document.getElementById('portfolioTotalSub').innerText =
-        `Net Portfolio Equity: $${totalVal.toLocaleString()} | Active Margin/Borrow Debt: $${borrowTotal.toLocaleString()} | ${directPct}% Self-Custody Hygiene`;
+      const netEquity = Math.max(1, grossAssets - borrowTotal);
 
-      // Phase Target Weights (Target for Margin / Borrow is always 0%)
+      const directPct = Math.max(0, Math.round(((grossAssets - custodialVal) / Math.max(1, grossAssets)) * 100));
+      document.getElementById('portfolioTotalSub').innerText =
+        `Net Portfolio Equity: $${netEquity.toLocaleString()} (Gross: $${grossAssets.toLocaleString()} | Margin Debt: -$${borrowTotal.toLocaleString()}) | ${directPct}% Self-Custody Hygiene`;
+
       let targets = { 'Dry Powder': 35, 'Hard Assets': 40, 'Equities': 17, 'Self-Custody DeFi': 8, 'Margin / Borrow': 0 };
       if (activePhase === 2) {
         const defiTarget = state.defiStrategy === 'native_staking' ? 8 : 0;
@@ -749,35 +645,25 @@
         targets = { 'Dry Powder': 5, 'Hard Assets': 62, 'Equities': 25, 'Self-Custody DeFi': 8, 'Margin / Borrow': 0 };
       }
 
-      // Render Grouped Bars (Includes Margin / Borrow)
       const bucketsOrder = ['Dry Powder', 'Hard Assets', 'Equities', 'Self-Custody DeFi', 'Margin / Borrow'];
-      
-      // Phase Target Weights
-      let targets = { 'Dry Powder': 35, 'Hard Assets': 40, 'Equities': 17, 'Self-Custody DeFi': 8 };
-      if (activePhase === 2) {
-        const defiTarget = state.defiStrategy === 'native_staking' ? 8 : 0;
-        targets = { 'Dry Powder': 15, 'Hard Assets': 60 - defiTarget, 'Equities': 25, 'Self-Custody DeFi': defiTarget };
-      } else if (activePhase === 3) {
-        targets = { 'Dry Powder': 5, 'Hard Assets': 62, 'Equities': 25, 'Self-Custody DeFi': 8 };
-      }
-
-      // Render Grouped Bars
-      const bucketsOrder = ['Dry Powder', 'Hard Assets', 'Equities', 'Self-Custody DeFi'];
       const barsHtml = bucketsOrder.map(b => {
-        const actualPct = ((bucketTotals[b] || 0) / totalVal) * 100;
+        const isDebt = b === 'Margin / Borrow';
+        const val = bucketTotals[b] || 0;
+        const actualPct = (val / Math.max(1, grossAssets)) * 100;
         const targetPct = targets[b];
         const drift = actualPct - targetPct;
         const driftTxt = drift >= 0 ? `+${drift.toFixed(1)}%` : `${drift.toFixed(1)}%`;
+        const fillClass = isDebt ? 'bar-fill-debt' : 'bar-fill-actual';
         return `
           <div class="bar-group">
             <div class="bar-group-header">
-              <span>${b} ($${(bucketTotals[b] || 0).toLocaleString()})</span>
+              <span style="${isDebt && val > 0 ? 'color:var(--red);' : ''}">${b} (${isDebt && val > 0 ? '-$' : '$'}${val.toLocaleString()})</span>
               <span class="mono">Actual: ${actualPct.toFixed(1)}% | Target: ${targetPct}.0% (Drift: ${driftTxt})</span>
             </div>
             <div class="bar-track">
-              <div class="bar-fill-actual" style="width:${Math.min(100, actualPct)}%;"></div>
+              <div class="${fillClass}" style="width:${Math.min(100, actualPct)}%;"></div>
             </div>
-            <div class="bar-track" style="height:8px;">
+            <div class="bar-track" style="height:7px;">
               <div class="bar-fill-target" style="width:${Math.min(100, targetPct)}%;"></div>
             </div>
           </div>
@@ -785,21 +671,21 @@
       }).join('');
       document.getElementById('barsContainer').innerHTML = barsHtml;
 
-      // Render DeFi Contagion Monitor
+      // DeFi Contagion Monitor
       const defiVal = bucketTotals['Self-Custody DeFi'] || 0;
       const cCard = document.getElementById('contagionCard');
       const cBadge = document.getElementById('contagionBadge');
       const cTitle = document.getElementById('contagionStrategyTitle');
       const cBody = document.getElementById('contagionBody');
 
-      if (state.defiStrategy === 'looped_borrow') {
+      if (state.defiStrategy === 'looped_borrow' || borrowTotal > 10) {
         cCard.className = 'alert-box status-red';
         cBadge.className = 'badge badge-red';
-        cBadge.innerText = 'Contagion Alert: Exit to 0%';
-        cTitle.innerText = 'Looped / Borrowed Collateral (On-Chain Margin)';
-        cBody.innerText = `($${defiVal.toLocaleString()} exposed) IMMINENT LIQUIDATION: Cross-asset correlation spikes to 1.0 in Phase 2 shock; utilization hits 100% and borrow rates verticalize. De-lever to 1x supply now!`;
+        cBadge.innerText = `Active Borrow: -$${borrowTotal.toLocaleString()}`;
+        cTitle.innerText = 'Looped / Borrowed Collateral (On-Chain Margin Debt)';
+        cBody.innerText = `($${borrowTotal.toLocaleString()} borrowed against $${defiVal.toLocaleString()} DeFi/Collateral) WARNING: In a Phase 2 shock, correlations hit 1.0, utilization spikes to 100%, and borrow rates verticalize. Monitor LTV closely or de-lever before Phase 2!`;
       } else if (state.defiStrategy === 'stable_lp') {
-        cTitle.innerText = 'Stablecoin Lending / LP (Morpho USDC/USDT Vaults)';
+        cTitle.innerText = 'Stablecoin Lending / LP (Morpho Vaults & Markets)';
         if (activePhase === 2) {
           cCard.className = 'alert-box status-red';
           cBadge.className = 'badge badge-red';
@@ -830,12 +716,11 @@
         cBadge.className = 'badge badge-green';
         cBadge.innerText = 'Zero Plumbing Contagion';
         cBody.innerText = `($${defiVal.toLocaleString()} deployed) No liquidation threshold and zero stablecoin reserve backing. Behaves as pure Hard Asset through all 3 phases.`;
-      }
-
-      // Render Tactical Rebalance Directive
+          }
+     // Tactical Rebalance Directive
       let maxDrift = 0;
       bucketsOrder.forEach(b => {
-        const actualPct = ((bucketTotals[b] || 0) / totalVal) * 100;
+        const actualPct = ((bucketTotals[b] || 0) / Math.max(1, grossAssets)) * 100;
         const d = Math.abs(actualPct - targets[b]);
         if (d > maxDrift) maxDrift = d;
       });
@@ -847,33 +732,33 @@
 
       if (activePhase === 2) {
         dCard.className = 'alert-box status-red';
-        dTitle.innerText = 'Deploy T-Bill Dry Powder into Hard Assets';
-        dBody.innerText = `Repo shock active (SOFR spread ${spSign}${state.sofrSpreadBps} bps, SRF $${state.srfUsageBillions.toFixed(1)}B). Rotate Dry Powder down to 15% and accumulate spot Bitcoin & Bullion toward 60% target.`;
+        dTitle.innerText = 'Deploy T-Bill Dry Powder & Eliminate Margin Debt';
+        dBody.innerText = `Repo shock active (SOFR spread ${spSign}${state.sofrSpreadBps} bps, SRF $${state.srfUsageBillions.toFixed(1)}B). Clear any Margin/Borrow debt to $0 and rotate Dry Powder down to 15% into spot Bitcoin & Bullion.`;
       } else if (activePhase === 3) {
         dCard.className = 'alert-box status-green';
         dTitle.innerText = 'Central Bank Liquidity Wave Active — Maximize Hard Assets';
         dBody.innerText = `SLR relief / QE expansion active. Rotate remaining T-Bill Dry Powder down to 5% and ride 62% Hard Assets + 8% DeFi yield sponge.`;
       } else {
         dCard.className = 'alert-box status-green';
-        dTitle.innerText = 'Maintain Phase 1 Dry Powder Buffer & Harvest 1x Yield';
-        dBody.innerText = `Overnight repo is calm (${spSign}${state.sofrSpreadBps} bps). Keep Dry Powder near 35% in 1–3M T-Bills and Core Cold BTC at 40% while waiting for Phase 2 discounts.`;
+        dTitle.innerText = 'Maintain Phase 1 Dry Powder Buffer & Harvest Yield';
+        dBody.innerText = `Overnight repo is calm (${spSign}${state.sofrSpreadBps} bps). Keep Dry Powder near 35% in 1–3M T-Bills and Core Cold BTC at 40% while monitoring any Morpho borrow health.`;
       }
 
-      // Render Positions Table (Highlights Margin/Borrow vs 1x Spot/Lend)
+      // Render Positions Table
       const tbody = document.getElementById('positionsBody');
       tbody.innerHTML = state.positions.map(p => {
         const isDebt = p.bucket === 'Margin / Borrow';
-        const w = ((p.value / totalVal) * 100).toFixed(1);
+        const w = ((p.value / Math.max(1, grossAssets)) * 100).toFixed(1);
         const badgeClass = isDebt ? 'badge-red' : p.bucket === 'Self-Custody DeFi' ? 'badge-green' : 'badge-blue';
         const valPrefix = isDebt ? '-$' : '$';
-        const valColor = isDebt ? 'color:var(--red); font-weight:700;' : '';
+        const valStyle = isDebt ? 'color:var(--red); font-weight:700;' : '';
         return `
           <tr>
             <td style="font-weight:600;">${p.name}</td>
             <td><span class="badge ${badgeClass}">${p.bucket}</span></td>
             <td>${p.custody}</td>
-            <td class="mono" style="${valColor}">${valPrefix}${p.value.toLocaleString()}</td>
-            <td class="mono" style="${valColor}">${isDebt ? '-' : ''}${w}%</td>
+            <td class="mono" style="${valStyle}">${valPrefix}${p.value.toLocaleString()}</td>
+            <td class="mono" style="${valStyle}">${isDebt ? '-' : ''}${w}%</td>
             <td><button class="btn btn-del" onclick="removePos(${p.id})">✕</button></td>
           </tr>
         `;
@@ -885,9 +770,9 @@
       const bucket = document.getElementById('inBucket').value;
       const custody = document.getElementById('inCustody').value;
       const val = parseFloat(document.getElementById('inVal').value);
-      if (!name || isNaN(val) || val <= 0) return;
+      if (!name || isNaN(val) || val <= 0) return alert('Enter a position name and positive dollar value.');
 
-      state.positions.push({ id: Date.now(), name, bucket, custody, value: val });
+      state.positions.push({ id: Date.now(), name, bucket, custody, value: val, isMorpho: false });
       document.getElementById('inName').value = '';
       document.getElementById('inVal').value = '';
       saveState();
@@ -978,7 +863,6 @@
         let totalSup = 0, totalBor = 0;
 
         if (user) {
-          // 1. V1 MetaMorpho Vaults (Lend)
           (user.vaultPositions || []).forEach((v, idx) => {
             const usd = Math.round(parseFloat(v?.state?.assetsUsd || 0));
             if (usd > 1) {
@@ -996,7 +880,6 @@
             }
           });
 
-          // 2. V2 Vaults (Lend)
           (user.vaultV2Positions || []).forEach((v2, idx) => {
             const usd = Math.round(parseFloat(v2?.assetsUsd || 0));
             if (usd > 1) {
@@ -1014,7 +897,6 @@
             }
           });
 
-          // 3. Direct Market Positions (Split into Direct Lend, Collateral, and Margin Borrow)
           (user.marketPositions || []).forEach((m, idx) => {
             const loanSym = m?.market?.loanAsset?.symbol || 'Loan';
             const collSym = m?.market?.collateralAsset?.symbol || 'Collateral';
@@ -1038,7 +920,6 @@
 
             if (colUsd > 1) {
               totalSup += colUsd;
-              // Classify BTC/ETH/wstETH collateral as Hard Assets or DeFi Collateral
               const isHardCol = ['WBTC','CBBTC','TBTC','WETH','WSTETH','RETH','WEETH'].includes(collSym.toUpperCase());
               newMorphoRows.push({
                 id: Date.now() + idx + 300,
@@ -1054,7 +935,7 @@
               totalBor += borUsd;
               newMorphoRows.push({
                 id: Date.now() + idx + 400,
-                name: `Morpho Margin Borrow: ${loanSym} Debt (against ${collSym})`,
+                name: `Morpho Margin Borrow: ${loanSym} Debt (vs ${collSym})`,
                 bucket: 'Margin / Borrow',
                 custody: 'Cold / Self-Custody',
                 value: borUsd,
@@ -1065,11 +946,8 @@
         }
 
         if (newMorphoRows.length > 0) {
-          // Remove ONLY previous auto-synced Morpho rows; keep all manual positions intact!
           state.positions = state.positions.filter(p => !p.isMorpho);
           state.positions.push(...newMorphoRows);
-
-          // Automatically flip strategy warning if active borrow exists
           state.defiStrategy = totalBor > 10 ? 'looped_borrow' : 'stable_lp';
 
           saveState();
@@ -1090,13 +968,12 @@
       }
     }
 
-    // FIREBASE CLOUD SYNC
     function getFbUrl() {
       saveConnections();
       let u = conn.firebaseUrl;
       if (!u) return null;
       if (!u.endsWith('/')) u += '/';
-      return u + 'macro_command_v3.json';
+      return u + 'macro_command_v5.json';
     }
 
     async function pushToFirebase(silent) {
@@ -1142,5 +1019,4 @@
     refreshAllFeeds();
   </script>
 </body>
-</html
-   
+</html>
