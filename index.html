@@ -904,51 +904,73 @@
       }
     }
 
-    // LIVE MORPHO BLUE GRAPHQL SCANNER
+    // LIVE MORPHO ETHEREUM MAINNET SCANNER (Supports V1 Vaults, V2 Vaults & Markets)
     async function fetchMorphoBalance() {
       saveConnections();
-      const addr = conn.walletAddress;
+      const addr = (conn.walletAddress || document.getElementById('walletAddress').value).trim();
       const badge = document.getElementById('syncBadge');
       if (!addr || !addr.startsWith('0x')) {
         alert('Paste your public 0x wallet address in the Cloud & Morpho Setup drawer first.');
         return;
       }
-      badge.innerText = 'Scanning Morpho...';
+      badge.className = 'badge badge-blue';
+      badge.innerText = 'Scanning Ethereum Morpho...';
+
       const query = `
-        query GetUserPositions($address: String!) {
-          users(where: { address_in: [$address] }) {
-            items {
-              vaultPositions { assetsUsd }
-              marketPositions { supplyAssetsUsd borrowAssetsUsd }
+        query GetUserEthMorpho($address: String!) {
+          userByAddress(chainId: 1, address: $address) {
+            vaultPositions {
+              state { assetsUsd }
+            }
+            vaultV2Positions {
+              assetsUsd
+            }
+            marketPositions {
+              state { supplyAssetsUsd borrowAssetsUsd collateralUsd }
             }
           }
         }
       `;
+
       try {
-        const res = await fetch('https://blue-api.morpho.org/graphql', {
+        const res = await fetch('https://api.morpho.org/graphql', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ query, variables: { address: addr.toLowerCase() } })
+          body: JSON.stringify({ query, variables: { address: addr } })
         });
         const json = await res.json();
-        const items = json?.data?.users?.items || [];
+        const user = json?.data?.userByAddress;
+
         let supply = 0, borrow = 0;
-        items.forEach(u => {
-          (u.vaultPositions || []).forEach(v => supply += parseFloat(v.assetsUsd || 0));
-          (u.marketPositions || []).forEach(m => {
-            supply += parseFloat(m.supplyAssetsUsd || 0);
-            borrow += parseFloat(m.borrowAssetsUsd || 0);
+        if (user) {
+          (user.vaultPositions || []).forEach(v => {
+            supply += parseFloat(v?.state?.assetsUsd || 0);
           });
-        });
+          (user.vaultV2Positions || []).forEach(v2 => {
+            supply += parseFloat(v2?.assetsUsd || 0);
+          });
+          (user.marketPositions || []).forEach(m => {
+            supply += parseFloat(m?.state?.supplyAssetsUsd || 0) + parseFloat(m?.state?.collateralUsd || 0);
+            borrow += parseFloat(m?.state?.borrowAssetsUsd || 0);
+          });
+        }
+
         const net = Math.round(supply - borrow);
         state.defiStrategy = borrow > 10 ? 'looped_borrow' : 'stable_lp';
+
         if (net > 0) {
           const row = state.positions.find(p => p.bucket === 'Self-Custody DeFi');
           if (row) {
-            row.name = `Morpho Live (${addr.slice(0,6)}...)`;
+            row.name = `Morpho Eth (${addr.slice(0,6)}...)`;
             row.value = net;
           } else {
-            state.positions.push({ id: Date.now(), name: `Morpho Live (${addr.slice(0,6)}...)`, bucket: 'Self-Custody DeFi', custody: 'Cold / Self-Custody', value: net });
+            state.positions.push({
+              id: Date.now(),
+              name: `Morpho Eth (${addr.slice(0,6)}...)`,
+              bucket: 'Self-Custody DeFi',
+              custody: 'Cold / Self-Custody',
+              value: net
+            });
           }
           saveState();
           syncControlsFromState();
@@ -959,10 +981,12 @@
         } else {
           badge.className = 'badge badge-amber';
           badge.innerText = 'Morpho: $0 Found';
+          alert('Scanned Ethereum Mainnet (V1 Vaults, V2 Vaults & Markets) for ' + addr.slice(0,8) + '... and found $0.');
         }
       } catch (e) {
         badge.className = 'badge badge-red';
-        badge.innerText = 'Morpho Error';
+        badge.innerText = 'Morpho API Error';
+        alert('Error connecting to api.morpho.org: ' + e.message);
       }
     }
 
