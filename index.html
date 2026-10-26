@@ -40,12 +40,16 @@
     .card-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
     .card-title { font-size: 0.98rem; font-weight: 700; }
     .card-subtitle { font-size: 0.78rem; color: var(--text-muted); }
-    .sliders-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    .sliders-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 16px; }
     @media (max-width: 820px) { .sliders-grid { grid-template-columns: 1fr; } }
     .slider-box { background: rgba(30, 41, 59, 0.55); border: 1px solid var(--border); border-radius: 8px; padding: 12px; }
     .slider-top { display: flex; justify-content: space-between; font-size: 0.8rem; font-weight: 600; margin-bottom: 8px; }
     .slider-val { color: var(--blue); font-family: var(--font-mono); font-weight: 700; }
     input[type="range"] { width: 100%; accent-color: var(--blue); cursor: pointer; height: 22px; }
+    .strategy-row { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+    .pill-group { display: flex; flex-wrap: wrap; gap: 6px; }
+    .strat-btn { background: var(--bg-sub); color: var(--text-muted); border: 1px solid var(--border); padding: 7px 11px; border-radius: 6px; font-size: 0.78rem; font-weight: 600; cursor: pointer; }
+    .strat-btn.active { background: rgba(56, 189, 248, 0.18); color: var(--blue); border-color: var(--blue); }
     .qe-toggle { display: inline-flex; align-items: center; gap: 8px; font-size: 0.8rem; font-weight: 600; background: var(--bg-sub); padding: 7px 12px; border-radius: 6px; border: 1px solid var(--border); cursor: pointer; }
     .qe-toggle input { width: 16px; height: 16px; accent-color: var(--green); }
     .chart-legend { display: flex; gap: 16px; font-size: 0.78rem; color: var(--text-muted); }
@@ -59,22 +63,17 @@
     .bar-fill-actual { height: 100%; background: linear-gradient(90deg, #0284c7, #38bdf8); border-radius: 4px; transition: width 0.3s ease; }
     .bar-fill-debt { height: 100%; background: linear-gradient(90deg, #b91c1c, #ef4444); border-radius: 4px; transition: width 0.3s ease; }
     .bar-fill-target { height: 100%; background: #475569; border-radius: 4px; transition: width 0.3s ease; }
-    .dual-grid { display: grid; grid-template-columns: 1.25fr 0.95fr; gap: 16px; margin-bottom: 16px; }
-    @media (max-width: 860px) { .dual-grid { grid-template-columns: 1fr; } }
+    .dual-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+    @media (max-width: 780px) { .dual-grid { grid-template-columns: 1fr; } }
     .alert-box { border-radius: 10px; padding: 16px; border: 1px solid var(--border); background: var(--bg-card); }
     .alert-box.status-green { border-left: 4px solid var(--green); }
-    .alert-box.status-amber { border-left: 4px solid var(--amber); background: rgba(245, 158, 11, 0.04); }
+    .alert-box.status-amber { border-left: 4px solid var(--amber); }
     .alert-box.status-red { border-left: 4px solid var(--red); background: rgba(239, 68, 68, 0.06); }
     .badge { padding: 3px 8px; border-radius: 4px; font-size: 0.72rem; font-weight: 700; font-family: var(--font-mono); }
     .badge-green { background: rgba(16, 185, 129, 0.18); color: #6ee7b7; border: 1px solid rgba(16, 185, 129, 0.4); }
     .badge-amber { background: rgba(245, 158, 11, 0.18); color: #fcd34d; border: 1px solid rgba(245, 158, 11, 0.4); }
     .badge-red { background: rgba(239, 68, 68, 0.2); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.45); }
     .badge-blue { background: rgba(56, 189, 248, 0.18); color: var(--blue); border: 1px solid rgba(56, 189, 248, 0.4); }
-    .runway-steps { margin-top: 10px; display: grid; gap: 6px; font-size: 0.78rem; }
-    .runway-step { padding: 7px 9px; border-radius: 6px; background: rgba(15, 23, 42, 0.65); border: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; gap: 8px; }
-    .runway-step.active-step { border-color: var(--amber); background: rgba(245, 158, 11, 0.12); color: #fde68a; font-weight: 600; }
-    .runway-step.danger-step { border-color: var(--red); background: rgba(239, 68, 68, 0.15); color: #fecaca; font-weight: 600; }
-    .runway-step.safe-step { border-color: var(--green); background: rgba(16, 185, 129, 0.1); color: #a7f3d0; font-weight: 600; }
     table { width: 100%; border-collapse: collapse; font-size: 0.83rem; }
     th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--border); }
     th { color: var(--text-muted); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; }
@@ -85,13 +84,12 @@
     .btn { background: var(--bg-sub); color: var(--text-main); border: 1px solid var(--border); padding: 8px 12px; border-radius: 6px; font-size: 0.8rem; font-weight: 600; cursor: pointer; }
     .btn:hover { border-color: var(--blue); }
     .btn-primary { background: #0284c7; border-color: var(--blue); color: #fff; }
-    .btn-toggle-net { background: rgba(56, 189, 248, 0.15); border-color: var(--blue); color: var(--blue); }
     .btn-del { background: rgba(239, 68, 68, 0.15); color: #fca5a5; border-color: rgba(239, 68, 68, 0.4); padding: 4px 9px; }
   </style>
 
   <script>
-    const STORAGE_KEY = 'macro_defi_command_v9';
-    const CONN_KEY = 'macro_defi_conn_v9';
+    const STORAGE_KEY = 'macro_defi_command_v7';
+    const CONN_KEY = 'macro_defi_conn_v7';
 
     function calcRealMonthOffset() {
       const now = new Date();
@@ -106,7 +104,7 @@
       sofrSpreadBps: 2,
       srfUsageBillions: 0.0,
       slrRelief: false,
-      showNetPositions: false,
+      defiStrategy: 'stable_lp',
       positions: [
         { id: 1, name: '1-3 Month Treasury Bills (3.88% Yield)', bucket: 'Dry Powder', custody: 'Direct Treasury', value: 35000 },
         { id: 2, name: 'Bitcoin (Hardware Cold Storage)', bucket: 'Hard Assets', custody: 'Cold / Self-Custody', value: 40000 },
@@ -119,7 +117,7 @@
 
     function loadState() {
       try {
-        const raw = window.localStorage.getItem(STORAGE_KEY) || window.localStorage.getItem('macro_defi_command_v8') || window.localStorage.getItem('macro_defi_command_v7');
+        const raw = window.localStorage.getItem(STORAGE_KEY) || window.localStorage.getItem('macro_defi_command_v6') || window.localStorage.getItem('macro_defi_command_v5');
         if (raw) {
           const parsed = JSON.parse(raw);
           if (parsed && Array.isArray(parsed.positions)) return parsed;
@@ -134,7 +132,7 @@
 
     function loadConn() {
       try {
-        const raw = window.localStorage.getItem(CONN_KEY) || window.localStorage.getItem('macro_defi_conn_v8') || window.localStorage.getItem('macro_defi_conn_v7');
+        const raw = window.localStorage.getItem(CONN_KEY) || window.localStorage.getItem('macro_defi_conn_v6') || window.localStorage.getItem('macro_defi_conn_v5');
         if (raw) return JSON.parse(raw);
       } catch (e) {}
       return { firebaseUrl: '', walletAddress: '' };
@@ -152,12 +150,6 @@
       document.getElementById('syncDrawer').classList.toggle('open');
     }
 
-    function toggleNetView() {
-      state.showNetPositions = !state.showNetPositions;
-      saveState();
-      render();
-    }
-
     function resetBaseline() {
       if (!confirm('Reset positions and sliders to baseline?')) return;
       state = JSON.parse(JSON.stringify(baselineState));
@@ -173,6 +165,18 @@
       document.getElementById('slSpread').value = state.sofrSpreadBps;
       document.getElementById('slSrf').value = state.srfUsageBillions;
       document.getElementById('qeToggle').checked = !!state.slrRelief;
+
+      ['perp_funding', 'stable_lp', 'native_staking', 'looped_borrow'].forEach(k => {
+        const btn = document.getElementById('btn_' + k);
+        if (btn) btn.classList.toggle('active', state.defiStrategy === k);
+      });
+    }
+
+    function setStrategy(strat) {
+      state.defiStrategy = strat;
+      saveState();
+      syncControlsFromState();
+      render();
     }
 
     function onSimChange() {
@@ -190,61 +194,6 @@
       const m = total % 12;
       const names = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
       return `${names[m]} ${y}`;
-    }
-
-    function getDisplayPositions() {
-      if (!state.showNetPositions) {
-        return state.positions.map(p => ({ ...p, displayValue: p.value, netNote: '' }));
-      }
-      const assetRows = state.positions
-        .filter(p => p.bucket !== 'Margin / Borrow')
-        .map(p => ({ ...p, displayValue: p.value, deductedDebt: 0 }));
-
-      const debtRows = state.positions.filter(p => p.bucket === 'Margin / Borrow');
-      let unmatchedDebt = 0;
-
-      debtRows.forEach(d => {
-        let rem = d.value;
-        if (d.pairKey) {
-          const target = assetRows.find(a => a.pairKey === d.pairKey && a.displayValue > 0);
-          if (target) {
-            const cut = Math.min(target.displayValue, rem);
-            target.displayValue -= cut;
-            target.deductedDebt += cut;
-            rem -= cut;
-          }
-        }
-        if (rem > 0) {
-          const target = assetRows.find(a => a.bucket === 'Self-Custody DeFi' && a.displayValue >= rem) ||
-                         assetRows.find(a => a.bucket === 'Hard Assets' && a.displayValue >= rem);
-          if (target) {
-            const cut = Math.min(target.displayValue, rem);
-            target.displayValue -= cut;
-            target.deductedDebt += cut;
-            rem -= cut;
-          } else {
-            unmatchedDebt += rem;
-          }
-        }
-      });
-
-      if (unmatchedDebt > 0) {
-        for (const a of assetRows) {
-          if (unmatchedDebt <= 0) break;
-          if (a.bucket === 'Self-Custody DeFi' || a.bucket === 'Hard Assets') {
-            const cut = Math.min(a.displayValue, unmatchedDebt);
-            a.displayValue -= cut;
-            a.deductedDebt += cut;
-            unmatchedDebt -= cut;
-          }
-        }
-      }
-
-      return assetRows.map(a => ({
-        ...a,
-        displayValue: Math.max(0, Math.round(a.displayValue)),
-        netNote: a.deductedDebt > 0 ? ` (Net of -$${Math.round(a.deductedDebt).toLocaleString()} borrow)` : ''
-      }));
     }
 
     function render() {
@@ -298,44 +247,35 @@
         stressSub.innerText = 'Calm Plumbing — Phase 1';
       }
 
-      const grossTotals = { 'Dry Powder': 0, 'Hard Assets': 0, 'Equities': 0, 'Self-Custody DeFi': 0, 'Margin / Borrow': 0 };
+      const bucketTotals = { 'Dry Powder': 0, 'Hard Assets': 0, 'Equities': 0, 'Self-Custody DeFi': 0, 'Margin / Borrow': 0 };
       let custodialVal = 0;
 
       state.positions.forEach(p => {
-        grossTotals[p.bucket] = (grossTotals[p.bucket] || 0) + p.value;
+        bucketTotals[p.bucket] = (bucketTotals[p.bucket] || 0) + p.value;
         if (p.custody === 'Custodial Exchange') custodialVal += p.value;
       });
 
-      const grossAssets = grossTotals['Dry Powder'] + grossTotals['Hard Assets'] + grossTotals['Equities'] + grossTotals['Self-Custody DeFi'];
-      const borrowTotal = grossTotals['Margin / Borrow'] || 0;
+      const grossAssets = bucketTotals['Dry Powder'] + bucketTotals['Hard Assets'] + bucketTotals['Equities'] + bucketTotals['Self-Custody DeFi'];
+      const borrowTotal = bucketTotals['Margin / Borrow'] || 0;
       const netEquity = Math.max(1, grossAssets - borrowTotal);
-
-      const displayRows = getDisplayPositions();
-      const activeTotals = { 'Dry Powder': 0, 'Hard Assets': 0, 'Equities': 0, 'Self-Custody DeFi': 0, 'Margin / Borrow': 0 };
-      displayRows.forEach(r => {
-        activeTotals[r.bucket] = (activeTotals[r.bucket] || 0) + r.displayValue;
-      });
-      const denom = state.showNetPositions ? netEquity : Math.max(1, grossAssets);
 
       const directPct = Math.max(0, Math.round(((grossAssets - custodialVal) / Math.max(1, grossAssets)) * 100));
       document.getElementById('portfolioTotalSub').innerText =
-        `Net Portfolio Equity: $${netEquity.toLocaleString()} (Gross Assets: $${grossAssets.toLocaleString()} | Margin Debt: -$${borrowTotal.toLocaleString()}) | ${directPct}% Self-Custody Hygiene`;
+        `Net Portfolio Equity: $${netEquity.toLocaleString()} (Gross: $${grossAssets.toLocaleString()} | Margin Debt: -$${borrowTotal.toLocaleString()}) | ${directPct}% Self-Custody Hygiene`;
 
       let targets = { 'Dry Powder': 35, 'Hard Assets': 40, 'Equities': 17, 'Self-Custody DeFi': 8, 'Margin / Borrow': 0 };
       if (activePhase === 2) {
-        targets = { 'Dry Powder': 15, 'Hard Assets': 60, 'Equities': 25, 'Self-Custody DeFi': 0, 'Margin / Borrow': 0 };
+        const defiTarget = state.defiStrategy === 'native_staking' ? 8 : 0;
+        targets = { 'Dry Powder': 15, 'Hard Assets': 60 - defiTarget, 'Equities': 25, 'Self-Custody DeFi': defiTarget, 'Margin / Borrow': 0 };
       } else if (activePhase === 3) {
         targets = { 'Dry Powder': 5, 'Hard Assets': 62, 'Equities': 25, 'Self-Custody DeFi': 8, 'Margin / Borrow': 0 };
       }
 
-      const bucketsOrder = state.showNetPositions
-        ? ['Dry Powder', 'Hard Assets', 'Equities', 'Self-Custody DeFi']
-        : ['Dry Powder', 'Hard Assets', 'Equities', 'Self-Custody DeFi', 'Margin / Borrow'];
-
+      const bucketsOrder = ['Dry Powder', 'Hard Assets', 'Equities', 'Self-Custody DeFi', 'Margin / Borrow'];
       document.getElementById('barsContainer').innerHTML = bucketsOrder.map(b => {
         const isDebt = b === 'Margin / Borrow';
-        const val = activeTotals[b] || 0;
-        const actualPct = (val / denom) * 100;
+        const val = bucketTotals[b] || 0;
+        const actualPct = (val / Math.max(1, grossAssets)) * 100;
         const targetPct = targets[b];
         const drift = actualPct - targetPct;
         const driftTxt = drift >= 0 ? `+${drift.toFixed(1)}%` : `${drift.toFixed(1)}%`;
@@ -352,82 +292,50 @@
         `;
       }).join('');
 
-      const defiGross = grossTotals['Self-Custody DeFi'] || 0;
-      const pledgedCol = state.positions
-        .filter(p => p.pairKey && p.bucket !== 'Margin / Borrow')
-        .reduce((s, p) => s + p.value, 0) || defiGross;
-      const netColEquity = Math.max(0, pledgedCol - borrowTotal);
-      const ltvPct = pledgedCol > 0 ? Math.min(99, Math.round((borrowTotal / pledgedCol) * 100)) : 0;
-      const levMult = netColEquity > 0 ? ((pledgedCol / netColEquity).toFixed(2) + 'x') : (borrowTotal > 0 ? 'Max' : '1.00x');
-
-      const spreadBufferBps = Math.max(0, 15 - state.sofrSpreadBps);
-      const srfBufferB = Math.max(0, 25 - state.srfUsageBillions).toFixed(1);
-
-      let repoStage = 0;
-      if (activePhase === 2 || state.sofrSpreadBps >= 15 || state.srfUsageBillions >= 25) {
-        repoStage = 3;
-      } else if (state.sofrSpreadBps >= 10 || state.srfUsageBillions >= 12 || state.monthOffset >= 10) {
-        repoStage = 2;
-      } else if (state.sofrSpreadBps >= 5 || state.srfUsageBillions >= 5 || ltvPct >= 75) {
-        repoStage = 1;
-      }
-
+      const defiVal = bucketTotals['Self-Custody DeFi'] || 0;
       const cCard = document.getElementById('contagionCard');
       const cBadge = document.getElementById('contagionBadge');
       const cTitle = document.getElementById('contagionStrategyTitle');
       const cBody = document.getElementById('contagionBody');
 
-      if (repoStage === 3) {
+      if (state.defiStrategy === 'looped_borrow' || borrowTotal > 10) {
         cCard.className = 'alert-box status-red';
         cBadge.className = 'badge badge-red';
-        cBadge.innerText = `STAGE 4 SHOCK | LTV: ${ltvPct}% (${levMult})`;
-        cTitle.innerText = `🚨 Repo Shock Active — Immediate Full De-Leveraging Required`;
-      } else if (repoStage === 2) {
-        cCard.className = 'alert-box status-red';
-        cBadge.className = 'badge badge-amber';
-        cBadge.innerText = `STAGE 3 WARNING | Buffer: ${spreadBufferBps} bps / $${srfBufferB}B SRF`;
-        cTitle.innerText = `⚠️ Pre-Shock Tightening — Cut Loop Leverage by 50% Now (${levMult} Active)`;
-      } else if (repoStage === 1) {
-        cCard.className = 'alert-box status-amber';
-        cBadge.className = 'badge badge-amber';
-        cBadge.innerText = `STAGE 2 WATCH | Buffer: ${spreadBufferBps} bps / $${srfBufferB}B SRF`;
-        cTitle.innerText = `🟡 Early Repo Pressure or High LTV (${ltvPct}% LTV | ${levMult}) — Prepare Unwind`;
+        cBadge.innerText = `Active Borrow: -$${borrowTotal.toLocaleString()}`;
+        cTitle.innerText = 'PendleLoop / Morpho Leveraged PT (On-Chain Margin Debt)';
+        cBody.innerText = `($${borrowTotal.toLocaleString()} borrowed against $${defiVal.toLocaleString()} DeFi/PT Collateral) WARNING: In a Phase 2 repo shock, money-market utilization hits 100% and borrow rates spike above fixed PT yield. Unwind loop leverage before Phase 2!`;
+      } else if (state.defiStrategy === 'stable_lp') {
+        cTitle.innerText = 'Stablecoin Lending / LP (Morpho, Pendle PT/LP, Merkl)';
+        if (activePhase === 2) {
+          cCard.className = 'alert-box status-red';
+          cBadge.className = 'badge badge-red';
+          cBadge.innerText = 'Repo Reserve Contagion';
+          cBody.innerText = `($${defiVal.toLocaleString()} exposed) REPO FREEZE ALERT: Stablecoin T-Bill/repo reserves face redemption gates during dealer stress. Withdraw vault liquidity and rotate to Spot BTC.`;
+        } else {
+          cCard.className = 'alert-box status-green';
+          cBadge.className = 'badge badge-green';
+          cBadge.innerText = 'Optimal Harvest (~9–14% APY)';
+          cBody.innerText = `($${defiVal.toLocaleString()} deployed) Plumbing is calm (+${state.sofrSpreadBps} bps spread). Safe to harvest unleveraged 1x Morpho, Pendle, and Merkl yield while watching SRF usage.`;
+        }
+      } else if (state.defiStrategy === 'perp_funding') {
+        cTitle.innerText = 'Perp DEX Vault / Delta-Neutral (1x Self-Custody)';
+        cCard.className = activePhase === 2 ? 'alert-box status-amber' : 'alert-box status-green';
+        cBadge.className = activePhase === 2 ? 'badge badge-amber' : 'badge badge-green';
+        cBadge.innerText = activePhase === 2 ? 'Funding Flip Warning' : 'Optimal Harvest (~14% APY)';
+        cBody.innerText = activePhase === 2
+          ? `($${defiVal.toLocaleString()} exposed) Negative funding flip & trader short PnL drawdown during forced liquidations. Unwind delta-neutral vaults into Spot BTC.`
+          : `($${defiVal.toLocaleString()} deployed) Positive funding carry in calm plumbing. Harvest cash flow and sweep profits into Cold BTC or T-Bills.`;
       } else {
+        cTitle.innerText = 'Native 1x Spot Staking (Zero Fiat/Debt Link)';
         cCard.className = 'alert-box status-green';
         cBadge.className = 'badge badge-green';
-        cBadge.innerText = `STAGE 1 CALM | Runway: +${spreadBufferBps} bps / $${srfBufferB}B SRF`;
-        cTitle.innerText = `🟢 Repo Plumbing Calm — Safe Carry Window (${levMult} Leverage | ${ltvPct}% LTV)`;
+        cBadge.innerText = 'Zero Plumbing Contagion';
+        cBody.innerText = `($${defiVal.toLocaleString()} deployed) No liquidation threshold and zero stablecoin reserve backing. Behaves as pure Hard Asset through all 3 phases.`;
       }
-
-      cBody.innerHTML = `
-        <div style="margin-bottom:8px;">
-          <strong>On-Chain Exposure:</strong> Gross DeFi/Collateral: <span class="mono">$${pledgedCol.toLocaleString()}</span> |
-          Borrowed Debt: <span class="mono" style="color:var(--red);">-$${borrowTotal.toLocaleString()}</span> |
-          Net DeFi Equity: <span class="mono" style="color:var(--green);">$${netColEquity.toLocaleString()}</span>
-        </div>
-        <div class="runway-steps">
-          <div class="runway-step ${repoStage === 0 ? 'safe-step' : ''}">
-            <span><strong>Step 1 — Calm Carry (SOFR &lt; +5 bps, SRF &lt; $5B):</strong> Hold PT/Morpho loops if borrow rate stays below fixed PT APY; keep LTV &le; 70%.</span>
-            <span class="mono">${repoStage === 0 ? 'ACTIVE' : 'PASSED'}</span>
-          </div>
-          <div class="runway-step ${repoStage === 1 ? 'active-step' : ''}">
-            <span><strong>Step 2 — Early Watch (SOFR +5..9 bps or SRF $5..12B):</strong> Stop adding leverage; sweep Merkl/vault rewards to wallet; set unwind alerts.</span>
-            <span class="mono">${repoStage === 1 ? 'ACTIVE NOW' : 'TRIGGER +5 bps'}</span>
-          </div>
-          <div class="runway-step ${repoStage === 2 ? 'danger-step' : ''}">
-            <span><strong>Step 3 — Pre-Shock Front-Run (SOFR +10..14 bps or SRF $12..24B):</strong> Unwind 50% of PendleLoop / Morpho debt <em>before</em> kink utilization hits 90%+.</span>
-            <span class="mono">${repoStage === 2 ? 'ACTION NOW' : 'TRIGGER +10 bps'}</span>
-          </div>
-          <div class="runway-step ${repoStage === 3 ? 'danger-step' : ''}">
-            <span><strong>Step 4 — Phase 2 Shock (SOFR &ge; +15 bps or SRF &ge; $25B):</strong> Close 100% of borrow loops to $0 debt; rotate stablecoin vaults into Spot BTC.</span>
-            <span class="mono">${repoStage === 3 ? 'URGENT EXIT' : 'TRIGGER +15 bps'}</span>
-          </div>
-        </div>
-      `;
 
       let maxDrift = 0;
       bucketsOrder.forEach(b => {
-        const actualPct = ((activeTotals[b] || 0) / denom) * 100;
+        const actualPct = ((bucketTotals[b] || 0) / Math.max(1, grossAssets)) * 100;
         const d = Math.abs(actualPct - targets[b]);
         if (d > maxDrift) maxDrift = d;
       });
@@ -447,29 +355,22 @@
         dBody.innerText = `SLR relief / QE expansion active. Rotate remaining T-Bill Dry Powder down to 5% and ride 62% Hard Assets + 8% DeFi yield sponge.`;
       } else {
         dCard.className = 'alert-box status-green';
-        dTitle.innerText = 'Maintain Phase 1 Dry Powder Buffer & Monitor Repo Runway';
-        dBody.innerText = `Overnight repo is calm (${spSign}${state.sofrSpreadBps} bps, ${spreadBufferBps} bps buffer before Phase 2). Keep Dry Powder near 35% in 1–3M T-Bills and Core Cold BTC at 40%. Follow the 4-stage DeFi runway on the left to unwind loops ahead of dealer stress.`;
+        dTitle.innerText = 'Maintain Phase 1 Dry Powder Buffer & Harvest Yield';
+        dBody.innerText = `Overnight repo is calm (${spSign}${state.sofrSpreadBps} bps). Keep Dry Powder near 35% in 1–3M T-Bills and Core Cold BTC at 40% while harvesting Morpho, PendleLoop & Merkl yield.`;
       }
 
-      const netBtn = document.getElementById('netToggleBtn');
-      if (netBtn) {
-        netBtn.innerText = state.showNetPositions ? '🔀 View: Net Equity Only (Debt Subtracted)' : '🔀 View: Gross + Borrow Rows';
-        netBtn.className = state.showNetPositions ? 'btn btn-toggle-net' : 'btn';
-      }
-
-      document.getElementById('positionsBody').innerHTML = displayRows.map(p => {
+      document.getElementById('positionsBody').innerHTML = state.positions.map(p => {
         const isDebt = p.bucket === 'Margin / Borrow';
-        const w = ((p.displayValue / denom) * 100).toFixed(1);
+        const w = ((p.value / Math.max(1, grossAssets)) * 100).toFixed(1);
         const badgeClass = isDebt ? 'badge-red' : p.bucket === 'Self-Custody DeFi' ? 'badge-green' : 'badge-blue';
         const valPrefix = isDebt ? '-$' : '$';
         const valStyle = isDebt ? 'color:var(--red); font-weight:700;' : '';
-        const subNote = p.netNote ? `<span style="font-size:0.73rem; color:var(--amber); font-weight:500;">${p.netNote}</span>` : '';
         return `
           <tr>
-            <td style="font-weight:600;">${p.name}${subNote}</td>
+            <td style="font-weight:600;">${p.name}</td>
             <td><span class="badge ${badgeClass}">${p.bucket}</span></td>
             <td>${p.custody}</td>
-            <td class="mono" style="${valStyle}">${valPrefix}${p.displayValue.toLocaleString()}</td>
+            <td class="mono" style="${valStyle}">${valPrefix}${p.value.toLocaleString()}</td>
             <td class="mono" style="${valStyle}">${isDebt ? '-' : ''}${w}%</td>
             <td><button class="btn btn-del" onclick="removePos(${p.id})">✕</button></td>
           </tr>
@@ -565,7 +466,7 @@
       for (const addr of addresses) {
         const lowerAddr = addr.toLowerCase();
 
-       // 1. MORPHO BLUE (Ethereum Mainnet V1 Vaults, V2 Vaults & Markets — tags PT Collateral automatically)
+        // 1. MORPHO BLUE (Ethereum Mainnet V1 Vaults, V2 Vaults & Markets — tags PT Collateral automatically)
         try {
           const morphoQuery = `
             query GetDetailedMorphoEth($address: String!) {
@@ -627,6 +528,7 @@
               const pair = `${collSym}/${loanSym}`;
               const isPendlePt = /^PT[-_]|^YT[-_]|PENDLE/i.test(collSym);
 
+
               const supUsd = Math.round(parseFloat(m?.state?.supplyAssetsUsd || 0));
               const colUsd = Math.round(parseFloat(m?.state?.collateralUsd || 0));
               const borUsd = Math.round(parseFloat(m?.state?.borrowAssetsUsd || 0));
@@ -669,8 +571,7 @@
             });
           }
         } catch (e) { console.warn('Morpho scan error:', e); }
-
-        // 2A. PENDLELOOP DEDICATED ENDPOINT (/core/v1/pt-looping/loop/positions)
+     // 2A. PENDLELOOP DEDICATED ENDPOINT (/core/v1/pt-looping/loop/positions)
         try {
           const loopUrls = [
             `https://api-v2.pendle.finance/core/v1/pt-looping/loop/positions?owner=${addr}&chainId=1`,
@@ -875,8 +776,8 @@
           }
         } catch (e) { console.warn('Merkl V4 scan error:', e); }
       }
-      
-    if (newDeFiRows.length > 0) {
+
+      if (newDeFiRows.length > 0) {
         state.positions = state.positions.filter(p => !p.isMorpho && !p.isDeFi);
         state.positions.push(...newDeFiRows);
         state.defiStrategy = totalBor > 10 ? 'looped_borrow' : 'stable_lp';
@@ -894,13 +795,13 @@
       }
     }
     window.fetchDeFiProtocols = fetchMorphoBalance;
-    
-   function getFbUrl() {
+
+    function getFbUrl() {
       saveConnections();
       let u = conn.firebaseUrl;
       if (!u) return null;
       if (!u.endsWith('/')) u += '/';
-      return u + 'macro_command_v9.json';
+      return u + 'macro_command_v7.json';
     }
 
     async function pushToFirebase(silent) {
@@ -1049,6 +950,18 @@
         <input type="range" id="slSrf" min="0" max="80" step="0.5" value="0" oninput="onSimChange()">
       </div>
     </div>
+
+    <div class="strategy-row">
+      <div style="font-size:0.8rem; font-weight:600; color:var(--text-muted);">
+        Self-Custody DeFi Strategy Mechanism (Applies to DeFi Bucket):
+      </div>
+      <div class="pill-group">
+        <button class="strat-btn" id="btn_perp_funding" onclick="setStrategy('perp_funding')">Perp DEX / Funding Rate</button>
+        <button class="strat-btn active" id="btn_stable_lp" onclick="setStrategy('stable_lp')">Stablecoin Lending / LP (Morpho & Pendle)</button>
+        <button class="strat-btn" id="btn_native_staking" onclick="setStrategy('native_staking')">Native 1x Spot Staking</button>
+        <button class="strat-btn" id="btn_looped_borrow" onclick="setStrategy('looped_borrow')">Looped / Borrowed Margin</button>
+      </div>
+    </div>
   </div>
 
   <div class="card">
@@ -1068,11 +981,11 @@
   <div class="dual-grid">
     <div id="contagionCard" class="alert-box status-green">
       <div class="card-header" style="margin-bottom:8px;">
-        <div class="card-title">DeFi Contagion & Repo De-Leveraging Runway</div>
-        <span id="contagionBadge" class="badge badge-green">STAGE 1 CALM</span>
+        <div class="card-title">DeFi Contagion Monitor</div>
+        <span id="contagionBadge" class="badge badge-green">Optimal Harvest</span>
       </div>
       <div id="contagionStrategyTitle" style="font-size:0.85rem; font-weight:700; color:var(--blue); margin-bottom:6px;"></div>
-      <div id="contagionBody" style="font-size:0.81rem; color:var(--text-muted);"></div>
+      <div id="contagionBody" style="font-size:0.82rem; color:var(--text-muted);"></div>
     </div>
 
     <div id="directiveCard" class="alert-box status-green">
@@ -1089,9 +1002,8 @@
     <div class="card-header">
       <div>
         <div class="card-title">Self-Custody, DeFi Lend, PendleLoop & Margin Borrow Positions</div>
-        <div class="card-subtitle">Toggle between Gross + Debt rows or Net Equity (collateral minus borrowed amount)</div>
+        <div class="card-subtitle">Scans Morpho, PendleLoop, Aave V3 E-Mode, and Merkl V4 without overwriting manual entries</div>
       </div>
-      <button id="netToggleBtn" class="btn" onclick="toggleNetView()">🔀 View: Gross + Borrow Rows</button>
     </div>
 
     <div style="overflow-x:auto;">
@@ -1131,4 +1043,3 @@
 
 </body>
 </html>
-    
