@@ -170,7 +170,7 @@ export const App: React.FC = () => {
       setNotice(null);
       setSyncBadge({
         variant: BadgeVariant.Blue,
-        text: 'Scanning Morpho, PendleLoop, Aave & Merkl...',
+        text: 'Scanning DeFi...',
       });
 
       try {
