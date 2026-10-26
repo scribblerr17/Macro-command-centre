@@ -526,7 +526,7 @@
               const collAddr = String(m?.market?.collateralAsset?.address || '').toLowerCase();
               const collSym = m?.market?.collateralAsset?.symbol || symMap[collAddr] || 'Collateral';
               const pair = `${collSym}/${loanSym}`;
-              const isPendlePt = collSym.toUpperCase().startsWith('PT-') || collSym.toUpperCase().includes('PENDLE') || Boolean(symMap[collAddr]);
+              const isPendlePt = /^PT[-_]|^YT[-_]|PENDLE/i.test(collSym);
 
               const supUsd = Math.round(parseFloat(m?.state?.supplyAssetsUsd || 0));
               const colUsd = Math.round(parseFloat(m?.state?.collateralUsd || 0));
