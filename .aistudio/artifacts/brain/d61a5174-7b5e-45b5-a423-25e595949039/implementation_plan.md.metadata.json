@@ -1,6 +1,6 @@
 {
-  "summary":  "Implementation plan for setting up automated GitHub Actions deployment to GitHub Pages for the React Vite application. Includes workflow configuration, build verification, and repository setup instructions.",
-  "updatedAt":  "2026-10-26T20:02:24.539661824Z",
+  "summary":  "Positions Ledger has been upgraded with category grouping, collapsible accordion sections, subtotals, weight percentages, and real-time on-chain LTV and debt-to-collateral risk metrics.",
+  "updatedAt":  "2026-10-26T23:46:26.901058692Z",
   "requestFeedback":  true,
   "userFacing":  true
 }

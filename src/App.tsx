@@ -9,14 +9,11 @@ import { SyncDrawer } from './components/SyncDrawer';
 import {
   fetchNYFedTelemetry,
   parseWalletAddresses,
-  pullStateFromFirebase,
-  pushStateToFirebase,
   scanEthereumDeFiPositions,
 } from './services/telemetryService';
 import {
   BadgeVariant,
   ConnectionSettings,
-  DeFiStrategy,
   MacroState,
   NoticeMessage,
   Position,
@@ -26,6 +23,9 @@ import {
   calcRealMonthOffset,
   computeMacroMetrics,
   createBaselineState,
+  createDemoState,
+  decodeStateFromUrl,
+  encodeStateToShareUrl,
   loadStoredConnections,
   loadStoredState,
   saveStoredConnections,
@@ -33,7 +33,20 @@ import {
 } from './utils/calculations';
 
 export const App: React.FC = () => {
-  const [state, setState] = useState<MacroState>(() => loadStoredState());
+  const [state, setState] = useState<MacroState>(() => {
+    // Check if user arrived via a shared URL link
+    const shared = decodeStateFromUrl();
+    if (shared) {
+      const baseline = createBaselineState();
+      return {
+        ...baseline,
+        ...shared,
+        positions: shared.positions ?? baseline.positions,
+      };
+    }
+    return loadStoredState();
+  });
+
   const [connections, setConnections] = useState<ConnectionSettings>(() => loadStoredConnections());
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -42,7 +55,15 @@ export const App: React.FC = () => {
     variant: BadgeVariant.Blue,
     text: 'Ready',
   });
-  const [notice, setNotice] = useState<NoticeMessage | null>(null);
+  const [notice, setNotice] = useState<NoticeMessage | null>(() => {
+    if (typeof window !== 'undefined' && window.location.search.includes('p=')) {
+      return {
+        variant: BadgeVariant.Green,
+        text: 'Shared portfolio loaded successfully from URL link!',
+      };
+    }
+    return null;
+  });
 
   const stateRef = useRef(state);
   stateRef.current = state;
@@ -59,74 +80,6 @@ export const App: React.FC = () => {
   }, [connections]);
 
   const metrics = useMemo(() => computeMacroMetrics(state), [state]);
-
-  const handlePushCloud = useCallback(async (silent: boolean, customState?: MacroState) => {
-    const fbUrl = connectionsRef.current.firebaseUrl.trim();
-    if (!fbUrl) {
-      if (!silent) {
-        setIsDrawerOpen(true);
-        setNotice({
-          variant: BadgeVariant.Amber,
-          text: 'Enter your Firebase Realtime DB URL in the setup drawer first.',
-        });
-      }
-      return;
-    }
-
-    try {
-      const ok = await pushStateToFirebase(fbUrl, customState ?? stateRef.current);
-      if (ok) {
-        setSyncBadge({ variant: BadgeVariant.Green, text: '☁️ Cloud Saved' });
-        if (!silent) {
-          setNotice(null);
-        }
-      }
-    } catch {
-      if (!silent) {
-        setNotice({
-          variant: BadgeVariant.Red,
-          text: 'Unable to save to Firebase Realtime Database. Verify your URL and database rules.',
-        });
-      }
-    }
-  }, []);
-
-  const handlePullCloud = useCallback(async (silent = false) => {
-    const fbUrl = connectionsRef.current.firebaseUrl.trim();
-    if (!fbUrl) {
-      if (!silent) {
-        setIsDrawerOpen(true);
-        setNotice({
-          variant: BadgeVariant.Amber,
-          text: 'Enter your Firebase Realtime DB URL in the setup drawer first.',
-        });
-      }
-      return;
-    }
-
-    try {
-      const remoteState = await pullStateFromFirebase(fbUrl);
-      if (remoteState) {
-        setState(remoteState);
-        setSyncBadge({ variant: BadgeVariant.Green, text: '☁️ Cloud Loaded' });
-        if (!silent) {
-          setNotice(null);
-        }
-      } else if (!silent) {
-        setNotice({
-          variant: BadgeVariant.Amber,
-          text: 'No saved portfolio state found at that Firebase Realtime DB URL yet.',
-        });
-      }
-    } catch {
-      if (!silent) {
-        setNotice({
-          variant: BadgeVariant.Red,
-          text: 'Unable to load from Firebase Realtime Database. Check your URL and network connection.',
-        });
-      }
-    }
-  }, []);
 
   const handleFetchNYFed = useCallback(async () => {
     try {
@@ -152,75 +105,60 @@ export const App: React.FC = () => {
     }
   }, []);
 
-  const handleScanDeFi = useCallback(
-    async (silentIfEmptyWallet = false) => {
-      const addresses = parseWalletAddresses(connectionsRef.current.walletAddress);
-      if (addresses.length === 0) {
-        if (!silentIfEmptyWallet) {
-          setIsDrawerOpen(true);
-          setNotice({
-            variant: BadgeVariant.Amber,
-            text: 'Paste your 0x wallet address (or comma-separated main + proxy addresses) in the Cloud & DeFi Setup drawer.',
-          });
-        }
-        return;
+  const handleScanDeFi = useCallback(async (silentIfEmptyWallet = false) => {
+    const addresses = parseWalletAddresses(connectionsRef.current.walletAddress);
+    if (addresses.length === 0) {
+      if (!silentIfEmptyWallet) {
+        setIsDrawerOpen(true);
+        setNotice({
+          variant: BadgeVariant.Amber,
+          text: 'Paste your 0x wallet address in the DeFi Wallet & Tools drawer.',
+        });
       }
+      return;
+    }
 
-      setIsScanningDeFi(true);
-      setNotice(null);
-      setSyncBadge({
-        variant: BadgeVariant.Blue,
-        text: 'Scanning DeFi...',
-      });
+    setIsScanningDeFi(true);
+    setNotice(null);
+    setSyncBadge({
+      variant: BadgeVariant.Blue,
+      text: 'Scanning DeFi...',
+    });
 
-      try {
-        const result = await scanEthereumDeFiPositions(addresses);
-        if (result.rows.length > 0) {
-          const nextStrategy =
-            result.totalBor > 10 ? DeFiStrategy.LoopedBorrow : DeFiStrategy.StableLp;
+    try {
+      const result = await scanEthereumDeFiPositions(addresses);
+      if (result.rows.length > 0) {
+        setState((prev) => {
+          const manualPositions = prev.positions.filter((p) => !p.isMorpho && !p.isDeFi);
+          return {
+            ...prev,
+            positions: [...manualPositions, ...result.rows],
+          };
+        });
 
-          let updatedSnapshot: MacroState | undefined;
-          setState((prev) => {
-            const manualPositions = prev.positions.filter((p) => !p.isMorpho && !p.isDeFi);
-            const nextState: MacroState = {
-              ...prev,
-              positions: [...manualPositions, ...result.rows],
-              defiStrategy: nextStrategy,
-            };
-            updatedSnapshot = nextState;
-            return nextState;
-          });
-
-          setSyncBadge({
-            variant: BadgeVariant.Green,
-            text: `Synced (M:${result.counts.morpho} P:${result.counts.pendle} R:${result.counts.merkl}) +$${result.totalSup.toLocaleString()}`,
-          });
-
-          if (updatedSnapshot) {
-            await handlePushCloud(true, updatedSnapshot);
-          }
-        } else {
-          setSyncBadge({
-            variant: BadgeVariant.Amber,
-            text: 'DeFi: $0 Found',
-          });
-          setNotice({
-            variant: BadgeVariant.Amber,
-            text: 'Scanned Morpho, PendleLoop, Aave V3 & Merkl on Ethereum and found 0 positions.',
-          });
-        }
-      } finally {
-        setIsScanningDeFi(false);
+        setSyncBadge({
+          variant: BadgeVariant.Green,
+          text: `Synced (M:${result.counts.morpho} P:${result.counts.pendle} R:${result.counts.merkl}) +$${result.totalSup.toLocaleString()}`,
+        });
+      } else {
+        setSyncBadge({
+          variant: BadgeVariant.Amber,
+          text: 'DeFi: $0 Found',
+        });
+        setNotice({
+          variant: BadgeVariant.Amber,
+          text: 'Scanned Morpho, PendleLoop, Aave V3 & Merkl on Ethereum and found 0 positions for this wallet.',
+        });
       }
-    },
-    [handlePushCloud]
-  );
+    } finally {
+      setIsScanningDeFi(false);
+    }
+  }, []);
 
   const handleRefreshAllFeeds = useCallback(async () => {
     setIsSyncing(true);
     setNotice(null);
     try {
-      await handlePullCloud(true);
       await handleFetchNYFed();
       if (connectionsRef.current.walletAddress.includes('0x')) {
         await handleScanDeFi(true);
@@ -228,7 +166,7 @@ export const App: React.FC = () => {
     } finally {
       setIsSyncing(false);
     }
-  }, [handlePullCloud, handleFetchNYFed, handleScanDeFi]);
+  }, [handleFetchNYFed, handleScanDeFi]);
 
   useEffect(() => {
     void handleRefreshAllFeeds();
@@ -240,7 +178,6 @@ export const App: React.FC = () => {
       sofrSpreadBps?: number;
       srfUsageBillions?: number;
       slrRelief?: boolean;
-      defiStrategy?: DeFiStrategy;
     }) => {
       setState((prev) => ({
         ...prev,
@@ -250,49 +187,108 @@ export const App: React.FC = () => {
     []
   );
 
-  const handleAddPosition = useCallback(
-    (pos: Omit<Position, 'id'>) => {
-      const newPosition: Position = {
-        ...pos,
-        id: Date.now(),
-      };
-      let nextSnapshot: MacroState | undefined;
-      setState((prev) => {
-        const next: MacroState = {
-          ...prev,
-          positions: [...prev.positions, newPosition],
-        };
-        nextSnapshot = next;
-        return next;
-      });
-      if (nextSnapshot) {
-        void handlePushCloud(true, nextSnapshot);
-      }
-    },
-    [handlePushCloud]
-  );
+  const handleAddPosition = useCallback((pos: Omit<Position, 'id'>) => {
+    const newPosition: Position = {
+      ...pos,
+      id: Date.now(),
+    };
+    setState((prev) => ({
+      ...prev,
+      positions: [...prev.positions, newPosition],
+    }));
+  }, []);
 
-  const handleRemovePosition = useCallback(
-    (id: number) => {
-      let nextSnapshot: MacroState | undefined;
-      setState((prev) => {
-        const next: MacroState = {
-          ...prev,
-          positions: prev.positions.filter((p) => p.id !== id),
-        };
-        nextSnapshot = next;
-        return next;
-      });
-      if (nextSnapshot) {
-        void handlePushCloud(true, nextSnapshot);
-      }
-    },
-    [handlePushCloud]
-  );
+  const handleRemovePosition = useCallback((id: number) => {
+    setState((prev) => ({
+      ...prev,
+      positions: prev.positions.filter((p) => p.id !== id),
+    }));
+  }, []);
 
   const handleResetBaseline = useCallback(() => {
     setState(createBaselineState());
-    setNotice(null);
+    setNotice({
+      variant: BadgeVariant.Blue,
+      text: 'Reset to baseline allocation and live NY Fed telemetry.',
+    });
+  }, []);
+
+  // Zero-database Export / Import / Share tools
+  const handleExportJson = useCallback(() => {
+    const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(stateRef.current, null, 2));
+    const downloadAnchor = document.createElement('a');
+    downloadAnchor.setAttribute('href', dataStr);
+    downloadAnchor.setAttribute('download', 'macro_portfolio_backup.json');
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+    setNotice({
+      variant: BadgeVariant.Green,
+      text: 'Backup file (macro_portfolio_backup.json) downloaded successfully.',
+    });
+  }, []);
+
+  const handleImportJson = useCallback((file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const parsed = JSON.parse(String(e.target?.result));
+        if (parsed && Array.isArray(parsed.positions)) {
+          setState((prev) => ({
+            ...prev,
+            ...parsed,
+          }));
+          setNotice({
+            variant: BadgeVariant.Green,
+            text: `Imported backup with ${parsed.positions.length} positions successfully.`,
+          });
+        } else {
+          setNotice({
+            variant: BadgeVariant.Red,
+            text: 'Invalid backup file format.',
+          });
+        }
+      } catch {
+        setNotice({
+          variant: BadgeVariant.Red,
+          text: 'Failed to read JSON backup file.',
+        });
+      }
+    };
+    reader.readAsText(file);
+  }, []);
+
+  const handleCopyShareLink = useCallback(() => {
+    const shareUrl = encodeStateToShareUrl(stateRef.current);
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(shareUrl).then(
+        () => {
+          setNotice({
+            variant: BadgeVariant.Green,
+            text: 'Shareable link copied to clipboard! Anyone with this link will see your exact scenario.',
+          });
+        },
+        () => {
+          setNotice({
+            variant: BadgeVariant.Blue,
+            text: `Share URL: ${shareUrl}`,
+          });
+        }
+      );
+    } else {
+      setNotice({
+        variant: BadgeVariant.Blue,
+        text: `Share URL: ${shareUrl}`,
+      });
+    }
+  }, []);
+
+  const handleLoadDemo = useCallback(() => {
+    setState(createDemoState());
+    setNotice({
+      variant: BadgeVariant.Amber,
+      text: 'Demo portfolio loaded (includes sample Morpho USDC & Pendle PT positions).',
+    });
   }, []);
 
   return (
@@ -315,6 +311,10 @@ export const App: React.FC = () => {
           className={`mb-4 flex items-center justify-between gap-3 rounded-[8px] border px-3.5 py-2.5 text-[0.82rem] ${
             notice.variant === BadgeVariant.Red
               ? 'border-[#ef4444]/45 bg-[#ef4444]/15 text-[#fca5a5]'
+              : notice.variant === BadgeVariant.Green
+              ? 'border-[#10b981]/45 bg-[#10b981]/15 text-[#6ee7b7]'
+              : notice.variant === BadgeVariant.Blue
+              ? 'border-[#38bdf8]/45 bg-[#38bdf8]/15 text-[#38bdf8]'
               : 'border-[#f59e0b]/45 bg-[#f59e0b]/15 text-[#fcd34d]'
           }`}
         >
@@ -335,8 +335,10 @@ export const App: React.FC = () => {
         isScanning={isScanningDeFi}
         onChangeConnections={setConnections}
         onScanDeFi={() => void handleScanDeFi(false)}
-        onSaveCloud={() => void handlePushCloud(false)}
-        onLoadCloud={() => void handlePullCloud(false)}
+        onExportJson={handleExportJson}
+        onImportJson={handleImportJson}
+        onCopyShareLink={handleCopyShareLink}
+        onLoadDemo={handleLoadDemo}
       />
 
       <KpiGrid
@@ -357,7 +359,6 @@ export const App: React.FC = () => {
         spSign={metrics.spSign}
         srfUsageBillions={state.srfUsageBillions}
         slrRelief={state.slrRelief}
-        defiStrategy={state.defiStrategy}
         onChangeSimulation={handleChangeSimulation}
       />
 

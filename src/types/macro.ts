@@ -1,10 +1,3 @@
-export enum DeFiStrategy {
-  PerpFunding = 'perp_funding',
-  StableLp = 'stable_lp',
-  NativeStaking = 'native_staking',
-  LoopedBorrow = 'looped_borrow',
-}
-
 export enum BucketCategory {
   DryPowder = 'Dry Powder',
   HardAssets = 'Hard Assets',
@@ -43,12 +36,10 @@ export interface MacroState {
   sofrSpreadBps: number;
   srfUsageBillions: number;
   slrRelief: boolean;
-  defiStrategy: DeFiStrategy;
   positions: Position[];
 }
 
 export interface ConnectionSettings {
-  firebaseUrl: string;
   walletAddress: string;
 }
 
@@ -72,12 +63,21 @@ export interface BarAllocationItem {
   driftTxt: string;
 }
 
+export interface ContagionActionStep {
+  stepNumber: number;
+  title: string;
+  instruction: string;
+}
+
 export interface ContagionMonitorState {
   status: 'green' | 'amber' | 'red';
   badgeVariant: BadgeVariant;
   badgeText: string;
   strategyTitle: string;
+  detectedCategory: string;
+  exposureSummary: string;
   body: string;
+  actionSteps: ContagionActionStep[];
 }
 
 export interface RebalanceDirectiveState {

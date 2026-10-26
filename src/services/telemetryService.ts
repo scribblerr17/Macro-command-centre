@@ -1,7 +1,6 @@
 import {
   BucketCategory,
   CustodyHygiene,
-  MacroState,
   Position,
 } from '../types/macro';
 
@@ -528,34 +527,4 @@ export async function scanEthereumDeFiPositions(addresses: string[]): Promise<De
     totalBor,
     counts,
   };
-}
-
-export function buildFirebaseDbEndpoint(rawFirebaseUrl: string): string | null {
-  let u = rawFirebaseUrl.trim();
-  if (!u) return null;
-  if (!u.endsWith('/')) u += '/';
-  return `${u}macro_command_v7.json`;
-}
-
-export async function pushStateToFirebase(rawFirebaseUrl: string, state: MacroState): Promise<boolean> {
-  const endpoint = buildFirebaseDbEndpoint(rawFirebaseUrl);
-  if (!endpoint) return false;
-  const res = await fetch(endpoint, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(state),
-  });
-  return res.ok;
-}
-
-export async function pullStateFromFirebase(rawFirebaseUrl: string): Promise<MacroState | null> {
-  const endpoint = buildFirebaseDbEndpoint(rawFirebaseUrl);
-  if (!endpoint) return null;
-  const res = await fetch(endpoint);
-  if (!res.ok) return null;
-  const data = await res.json();
-  if (data && Array.isArray(data.positions)) {
-    return data as MacroState;
-  }
-  return null;
 }

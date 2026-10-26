@@ -3,9 +3,9 @@ import {
   BarAllocationItem,
   BucketCategory,
   ConnectionSettings,
+  ContagionActionStep,
   ContagionMonitorState,
   CustodyHygiene,
-  DeFiStrategy,
   MacroState,
   RebalanceDirectiveState,
 } from '../types/macro';
@@ -35,7 +35,6 @@ export function createBaselineState(): MacroState {
     sofrSpreadBps: 2,
     srfUsageBillions: 0.0,
     slrRelief: false,
-    defiStrategy: DeFiStrategy.StableLp,
     positions: [
       {
         id: 1,
@@ -62,6 +61,56 @@ export function createBaselineState(): MacroState {
   };
 }
 
+export function createDemoState(): MacroState {
+  return {
+    monthOffset: calcRealMonthOffset(),
+    sofrRate: 3.9,
+    effrRate: 3.88,
+    sofrSpreadBps: 2,
+    srfUsageBillions: 0.0,
+    slrRelief: false,
+    positions: [
+      {
+        id: 1,
+        name: '1-3 Month Treasury Bills (US Treasury Direct)',
+        bucket: BucketCategory.DryPowder,
+        custody: CustodyHygiene.DirectTreasury,
+        value: 35000,
+      },
+      {
+        id: 2,
+        name: 'Bitcoin (Cold Card Hardware Wallet)',
+        bucket: BucketCategory.HardAssets,
+        custody: CustodyHygiene.ColdSelfCustody,
+        value: 42000,
+      },
+      {
+        id: 3,
+        name: 'Physical Gold & Energy Producers',
+        bucket: BucketCategory.Equities,
+        custody: CustodyHygiene.DirectTreasury,
+        value: 18000,
+      },
+      {
+        id: 4,
+        name: 'Morpho Blue USDC Supply (MetaMorpho)',
+        bucket: BucketCategory.SelfCustodyDeFi,
+        custody: CustodyHygiene.ColdSelfCustody,
+        value: 5000,
+        isMorpho: true,
+      },
+      {
+        id: 5,
+        name: 'Pendle PT-sUSDe Dec 2026 (Fixed Yield)',
+        bucket: BucketCategory.SelfCustodyDeFi,
+        custody: CustodyHygiene.ColdSelfCustody,
+        value: 5000,
+        isMorpho: true,
+      },
+    ],
+  };
+}
+
 export function loadStoredState(): MacroState {
   try {
     const raw =
@@ -80,13 +129,12 @@ export function loadStoredState(): MacroState {
           srfUsageBillions:
             typeof parsed.srfUsageBillions === 'number' ? parsed.srfUsageBillions : baseline.srfUsageBillions,
           slrRelief: Boolean(parsed.slrRelief),
-          defiStrategy: (parsed.defiStrategy as DeFiStrategy) || baseline.defiStrategy,
           positions: parsed.positions,
         };
       }
     }
   } catch {
-    // Fallback to baseline if storage is unavailable or malformed
+    // Fallback
   }
   return createBaselineState();
 }
@@ -95,12 +143,11 @@ export function saveStoredState(state: MacroState): void {
   try {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   } catch {
-    // Ignore storage quota errors
+    // Ignore quota errors
   }
 }
 
 export function loadStoredConnections(): ConnectionSettings {
-  const defaultFbUrl = import.meta.env.VITE_DEFAULT_FIREBASE_DB_URL || '';
   try {
     const raw =
       window.localStorage.getItem(CONN_KEY) ||
@@ -109,21 +156,20 @@ export function loadStoredConnections(): ConnectionSettings {
     if (raw) {
       const parsed = JSON.parse(raw) as Partial<ConnectionSettings>;
       return {
-        firebaseUrl: parsed.firebaseUrl ?? defaultFbUrl,
         walletAddress: parsed.walletAddress ?? '',
       };
     }
   } catch {
-    // Fallback to empty connection settings
+    // Fallback
   }
-  return { firebaseUrl: defaultFbUrl, walletAddress: '' };
+  return { walletAddress: '' };
 }
 
 export function saveStoredConnections(conn: ConnectionSettings): void {
   try {
     window.localStorage.setItem(CONN_KEY, JSON.stringify(conn));
   } catch {
-    // Ignore storage quota errors
+    // Ignore quota errors
   }
 }
 
@@ -133,6 +179,55 @@ export function formatMonthName(offset: number): string {
   const m = total % 12;
   const names = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   return `${names[m]} ${y}`;
+}
+
+export function encodeStateToShareUrl(state: MacroState): string {
+  try {
+    const minified = {
+      m: state.monthOffset,
+      sp: state.sofrSpreadBps,
+      srf: state.srfUsageBillions,
+      slr: state.slrRelief ? 1 : 0,
+      pos: state.positions.map((p) => [p.name, p.bucket, p.custody, p.value]),
+    };
+    const json = JSON.stringify(minified);
+    const b64 = btoa(encodeURIComponent(json));
+    const url = new URL(window.location.href);
+    url.searchParams.set('p', b64);
+    return url.toString();
+  } catch {
+    return window.location.href;
+  }
+}
+
+export function decodeStateFromUrl(): Partial<MacroState> | null {
+  try {
+    const url = new URL(window.location.href);
+    const b64 = url.searchParams.get('p');
+    if (!b64) return null;
+    const json = decodeURIComponent(atob(b64));
+    const parsed = JSON.parse(json);
+    if (parsed && Array.isArray(parsed.pos)) {
+      const positions = parsed.pos.map((item: [string, string, string, number], idx: number) => ({
+        id: Date.now() + idx,
+        name: item[0],
+        bucket: item[1],
+        custody: item[2],
+        value: item[3],
+        isMorpho: false,
+      }));
+      return {
+        monthOffset: typeof parsed.m === 'number' ? parsed.m : 0,
+        sofrSpreadBps: typeof parsed.sp === 'number' ? parsed.sp : 2,
+        srfUsageBillions: typeof parsed.srf === 'number' ? parsed.srf : 0,
+        slrRelief: Boolean(parsed.slr),
+        positions,
+      };
+    }
+  } catch {
+    // Ignore malformed query param
+  }
+  return null;
 }
 
 export function computeMacroMetrics(state: MacroState) {
@@ -195,8 +290,20 @@ export function computeMacroMetrics(state: MacroState) {
     bucketTotals[BucketCategory.Equities] +
     bucketTotals[BucketCategory.SelfCustodyDeFi];
   const borrowTotal = bucketTotals[BucketCategory.MarginBorrow] || 0;
+  const defiVal = bucketTotals[BucketCategory.SelfCustodyDeFi] || 0;
   const netEquity = Math.max(1, grossAssets - borrowTotal);
   const directPct = Math.max(0, Math.round(((grossAssets - custodialVal) / Math.max(1, grossAssets)) * 100));
+
+  // Auto-detect exposure characteristics from actual positions
+  const hasBorrowDebt = borrowTotal > 0;
+  const hasPtOrLoops = state.positions.some((p) =>
+    /loop|pt[-_\s]|borrow|margin/i.test(p.name)
+  );
+  const hasLendingOrVaults = state.positions.some(
+    (p) =>
+      p.bucket === BucketCategory.SelfCustodyDeFi &&
+      /morpho|lend|vault|merkl|pendle|usdc|usdt|dai|susde/i.test(p.name)
+  );
 
   let targets: Record<BucketCategory, number> = {
     [BucketCategory.DryPowder]: 35,
@@ -207,7 +314,8 @@ export function computeMacroMetrics(state: MacroState) {
   };
 
   if (activePhase === 2) {
-    const defiTarget = state.defiStrategy === DeFiStrategy.NativeStaking ? 8 : 0;
+    // If user has zero debt and pure spot/staking, keep safe DeFi allocation
+    const defiTarget = hasBorrowDebt ? 0 : 4;
     targets = {
       [BucketCategory.DryPowder]: 15,
       [BucketCategory.HardAssets]: 60 - defiTarget,
@@ -243,55 +351,207 @@ export function computeMacroMetrics(state: MacroState) {
     };
   });
 
-  const defiVal = bucketTotals[BucketCategory.SelfCustodyDeFi] || 0;
-  let contagion: ContagionMonitorState;
+  // LEDGER-DRIVEN CONTAGION MONITOR WITH ACTIONABLE NUMBERED STEPS
+  let contagionStatus: 'green' | 'amber' | 'red' = 'green';
+  let contagionBadgeVariant = BadgeVariant.Green;
+  let contagionBadgeText = 'Optimal Harvest';
+  let strategyTitle = 'Stablecoin Lending & Yield (1x Unleveraged)';
+  let detectedCategory = '1x Self-Custody Lending / Unleveraged Harvest';
+  let exposureSummary = `$${defiVal.toLocaleString()} deployed in DeFi | $0 Borrow Debt`;
+  let bodyText = '';
+  const actionSteps: ContagionActionStep[] = [];
 
-  if (state.defiStrategy === DeFiStrategy.LoopedBorrow || borrowTotal > 10) {
-    contagion = {
-      status: 'red',
-      badgeVariant: BadgeVariant.Red,
-      badgeText: `Active Borrow: -$${borrowTotal.toLocaleString()}`,
-      strategyTitle: 'PendleLoop / Morpho Leveraged PT (On-Chain Margin Debt)',
-      body: `($${borrowTotal.toLocaleString()} borrowed against $${defiVal.toLocaleString()} DeFi/PT Collateral) WARNING: In a Phase 2 repo shock, money-market utilization hits 100% and borrow rates spike above fixed PT yield. Unwind loop leverage before Phase 2!`,
-    };
-  } else if (state.defiStrategy === DeFiStrategy.StableLp) {
+  if (hasBorrowDebt || (hasPtOrLoops && borrowTotal > 0)) {
+    strategyTitle = 'Leveraged PT / Borrow Debt Detected (Morpho & PendleLoop)';
+    detectedCategory = 'Active On-Chain Margin Debt';
+    exposureSummary = `Active Borrow Debt: -$${borrowTotal.toLocaleString()} against $${defiVal.toLocaleString()} collateral`;
+
     if (activePhase === 2) {
-      contagion = {
-        status: 'red',
-        badgeVariant: BadgeVariant.Red,
-        badgeText: 'Repo Reserve Contagion',
-        strategyTitle: 'Stablecoin Lending / LP (Morpho, Pendle PT/LP, Merkl)',
-        body: `($${defiVal.toLocaleString()} exposed) REPO FREEZE ALERT: Stablecoin T-Bill/repo reserves face redemption gates during dealer stress. Withdraw vault liquidity and rotate to Spot BTC.`,
-      };
+      contagionStatus = 'red';
+      contagionBadgeVariant = BadgeVariant.Red;
+      contagionBadgeText = `Critical Unwind: -$${borrowTotal.toLocaleString()}`;
+      bodyText = `REPO SHOCK IN PROGRESS (+${state.sofrSpreadBps} bps, $${state.srfUsageBillions.toFixed(1)}B SRF): Money market utilization spikes toward 100%, causing variable borrow rates to exceed fixed PT yields and forcing collateral liquidations.`;
+      actionSteps.push(
+        {
+          stepNumber: 1,
+          title: 'Unwind PT & Margin Loops Immediately',
+          instruction: `Flash-unwind or close all $${borrowTotal.toLocaleString()} in borrowed stablecoins before lending market utilization hits 100% and halts withdrawals.`,
+        },
+        {
+          stepNumber: 2,
+          title: 'Redeem Stable Vaults to Spot Cold Storage',
+          instruction: 'Withdraw underlying stablecoin liquidity into Spot Bitcoin (hardware cold storage) or physical gold/T-Bills.',
+        },
+        {
+          stepNumber: 3,
+          title: 'Zero Out Margin Debt to $0',
+          instruction: 'Ensure 0% debt exposure so repo dealer freeze cascades cannot liquidate your core assets during volatility.',
+        }
+      );
     } else {
-      contagion = {
-        status: 'green',
-        badgeVariant: BadgeVariant.Green,
-        badgeText: 'Optimal Harvest (~9–14% APY)',
-        strategyTitle: 'Stablecoin Lending / LP (Morpho, Pendle PT/LP, Merkl)',
-        body: `($${defiVal.toLocaleString()} deployed) Plumbing is calm (+${state.sofrSpreadBps} bps spread). Safe to harvest unleveraged 1x Morpho, Pendle, and Merkl yield while watching SRF usage.`,
-      };
+      contagionStatus = 'amber';
+      contagionBadgeVariant = BadgeVariant.Amber;
+      contagionBadgeText = `Leverage Active: -$${borrowTotal.toLocaleString()}`;
+      bodyText = `Plumbing is currently calm (+${state.sofrSpreadBps} bps spread), but you have -$${borrowTotal.toLocaleString()} in active debt. Carry is positive today, but monitor overnight repo spreads closely.`;
+      actionSteps.push(
+        {
+          stepNumber: 1,
+          title: 'Track SOFR-EFFR Spread & Borrow Rates',
+          instruction: 'Watch for SOFR spikes above +15 bps or SRF drawings above $25B, which signal early money-market tightness.',
+        },
+        {
+          stepNumber: 2,
+          title: 'Sweep Borrow Carry into Dry Powder',
+          instruction: 'Harvest fixed PT yield differentials and sweep profits into 1–3M T-Bills or Cold BTC rather than increasing leverage.',
+        },
+        {
+          stepNumber: 3,
+          title: 'Prepare Pre-Set Unwind Limits',
+          instruction: 'Keep Health Factor / LTV safely conservative (sub-65%) and have an unwind transaction prepared before Phase 2 hits.',
+        }
+      );
     }
-  } else if (state.defiStrategy === DeFiStrategy.PerpFunding) {
-    contagion = {
-      status: activePhase === 2 ? 'amber' : 'green',
-      badgeVariant: activePhase === 2 ? BadgeVariant.Amber : BadgeVariant.Green,
-      badgeText: activePhase === 2 ? 'Funding Flip Warning' : 'Optimal Harvest (~14% APY)',
-      strategyTitle: 'Perp DEX Vault / Delta-Neutral (1x Self-Custody)',
-      body:
-        activePhase === 2
-          ? `($${defiVal.toLocaleString()} exposed) Negative funding flip & trader short PnL drawdown during forced liquidations. Unwind delta-neutral vaults into Spot BTC.`
-          : `($${defiVal.toLocaleString()} deployed) Positive funding carry in calm plumbing. Harvest cash flow and sweep profits into Cold BTC or T-Bills.`,
-    };
+  } else if (hasLendingOrVaults || defiVal > 0) {
+    strategyTitle = 'Unleveraged Stablecoin Lending & Yield (Morpho, Pendle & Merkl)';
+    detectedCategory = '1x Self-Custody Yield Sponge';
+    exposureSummary = `$${defiVal.toLocaleString()} deployed in 1x DeFi Yield | $0 Borrow Debt`;
+
+    if (activePhase === 2) {
+      contagionStatus = 'red';
+      contagionBadgeVariant = BadgeVariant.Red;
+      contagionBadgeText = 'Repo Reserve Contagion Alert';
+      bodyText = `REPO FREEZE WARNING: In Phase 2, stablecoin backing reserves (T-Bills and overnight reverse repos) face dealer redemption friction. Yield drops while redemption risk rises.`;
+      actionSteps.push(
+        {
+          stepNumber: 1,
+          title: 'Withdraw Vault Liquidity',
+          instruction: `Exit $${defiVal.toLocaleString()} in Morpho MetaMorpho and stablecoin pools into native cash or direct T-Bills.`,
+        },
+        {
+          stepNumber: 2,
+          title: 'Rotate Into Discounted Hard Assets',
+          instruction: 'Deploy freed dry powder into Spot Bitcoin and bullion during liquidation sell-offs.',
+        },
+        {
+          stepNumber: 3,
+          title: 'Hold 15% Safe Dry Powder Buffer',
+          instruction: 'Maintain a minimum 15% buffer in direct 1–3M Treasury Bills until central bank QE is declared.',
+        }
+      );
+    } else if (activePhase === 3) {
+      contagionStatus = 'green';
+      contagionBadgeVariant = BadgeVariant.Green;
+      contagionBadgeText = 'QE Yield Sponge Active';
+      bodyText = 'CENTRAL BANK QE EXPANSION ACTIVE: Overnight plumbing has been re-liquified. Ideal conditions for harvesting 1x unleveraged DeFi yield while riding scarce hard assets.';
+      actionSteps.push(
+        {
+          stepNumber: 1,
+          title: 'Re-Deploy Dry Powder into 1x Yield Vaults',
+          instruction: 'Deploy 8% of portfolio into high-reputation MetaMorpho or fixed-yield Pendle PT pools.',
+        },
+        {
+          stepNumber: 2,
+          title: 'Channel Cash Flow Directly to Hard Assets',
+          instruction: 'Sweep all generated yield into Spot BTC and real assets to compound during currency debasement.',
+        },
+        {
+          stepNumber: 3,
+          title: 'Maintain 100% Self-Custody Hygiene',
+          instruction: 'Keep zero borrow leverage and store majority wealth in cold hardware storage.',
+        }
+      );
+    } else {
+      contagionStatus = 'green';
+      contagionBadgeVariant = BadgeVariant.Green;
+      contagionBadgeText = 'Optimal Harvest (~9–14% APY)';
+      bodyText = `Overnight repo plumbing is calm (+${state.sofrSpreadBps} bps spread). You have $${defiVal.toLocaleString()} safely deployed without leverage.`;
+      actionSteps.push(
+        {
+          stepNumber: 1,
+          title: 'Harvest 1x Yield Spreads',
+          instruction: `Earn ~9–14% APY across Morpho, Pendle PT, and Merkl without taking on debt or liquidation risk.`,
+        },
+        {
+          stepNumber: 2,
+          title: 'Sweep Yield into 1–3M Treasury Bills',
+          instruction: 'Preserve dry powder buffer by sweeping monthly yields into direct US Treasury bills.',
+        },
+        {
+          stepNumber: 3,
+          title: 'Watch Standing Repo Facility (SRF)',
+          instruction: 'If SRF usage breaches $25B, prepare to rotate vault liquidity to Spot BTC.',
+        }
+      );
+    }
   } else {
-    contagion = {
-      status: 'green',
-      badgeVariant: BadgeVariant.Green,
-      badgeText: 'Zero Plumbing Contagion',
-      strategyTitle: 'Native 1x Spot Staking (Zero Fiat/Debt Link)',
-      body: `($${defiVal.toLocaleString()} deployed) No liquidation threshold and zero stablecoin reserve backing. Behaves as pure Hard Asset through all 3 phases.`,
-    };
+    strategyTitle = 'Pure 1x Hard Assets & Treasury Direct (Zero Debt Link)';
+    detectedCategory = 'Zero Plumbing Contagion / Full Self-Custody';
+    exposureSummary = '$0 DeFi Exposure | $0 Borrow Debt | 100% Direct Assets';
+
+    if (activePhase === 2) {
+      contagionStatus = 'green';
+      contagionBadgeVariant = BadgeVariant.Green;
+      contagionBadgeText = 'Shielded from Liquidation';
+      bodyText = 'ZERO PLUMBING CONTAGION: With zero on-chain borrow debt and zero stablecoin vault exposure, your portfolio is fully insulated from repo dealer freeze cascades.';
+      actionSteps.push(
+        {
+          stepNumber: 1,
+          title: 'Deploy T-Bill Dry Powder on Dips',
+          instruction: 'Rotate dry powder down to 15% by buying Spot Bitcoin and bullion as forced liquidations occur.',
+        },
+        {
+          stepNumber: 2,
+          title: 'Keep Assets in Cold Hardware Storage',
+          instruction: 'Ensure private keys remain offline to avoid exchange withdrawal halts.',
+        }
+      );
+    } else if (activePhase === 3) {
+      contagionStatus = 'green';
+      contagionBadgeVariant = BadgeVariant.Green;
+      contagionBadgeText = 'Max Scarce Assets';
+      bodyText = 'QE EXPANSION: Central banks expanding balance sheet. Hard asset allocations (BTC & Gold) maximize purchasing power preservation.';
+      actionSteps.push(
+        {
+          stepNumber: 1,
+          title: 'Ride Hard Assets to 62%',
+          instruction: 'Maintain 62% Hard Assets and 25% Equities while fiat liquidity floods the system.',
+        },
+        {
+          stepNumber: 2,
+          title: 'Optional: Deploy 8% to 1x DeFi Yield Sponge',
+          instruction: 'If desired, allocate up to 8% in Morpho/Pendle PT for cash flow generation.',
+        }
+      );
+    } else {
+      contagionStatus = 'green';
+      contagionBadgeVariant = BadgeVariant.Green;
+      contagionBadgeText = 'Zero Debt Risk';
+      bodyText = 'Calm plumbing conditions (+2 bps spread). Portfolio is defensively positioned in direct T-Bills, Bitcoin, and real assets with zero counterparty leverage.';
+      actionSteps.push(
+        {
+          stepNumber: 1,
+          title: 'Maintain 35% Dry Powder Yield',
+          instruction: 'Earn ~3.88% risk-free yield in 1–3M T-Bills while awaiting repo liquidity signals.',
+        },
+        {
+          stepNumber: 2,
+          title: 'Optional: Deploy Small DeFi Harvest',
+          instruction: 'Can deploy up to 8% in 1x Morpho or Pendle PT to boost overall portfolio yield.',
+        }
+      );
+    }
   }
+
+  const contagion: ContagionMonitorState = {
+    status: contagionStatus,
+    badgeVariant: contagionBadgeVariant,
+    badgeText: contagionBadgeText,
+    strategyTitle,
+    detectedCategory,
+    exposureSummary,
+    body: bodyText,
+    actionSteps,
+  };
 
   let maxDrift = 0;
   BUCKETS_ORDER.forEach((b) => {

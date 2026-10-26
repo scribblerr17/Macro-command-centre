@@ -1,5 +1,4 @@
 import React from 'react';
-import { DeFiStrategy } from '../types/macro';
 
 interface StressSimulatorProps {
   monthOffset: number;
@@ -8,22 +7,13 @@ interface StressSimulatorProps {
   spSign: string;
   srfUsageBillions: number;
   slrRelief: boolean;
-  defiStrategy: DeFiStrategy;
   onChangeSimulation: (patch: {
     monthOffset?: number;
     sofrSpreadBps?: number;
     srfUsageBillions?: number;
     slrRelief?: boolean;
-    defiStrategy?: DeFiStrategy;
   }) => void;
 }
-
-const STRATEGY_OPTIONS: { id: DeFiStrategy; label: string }[] = [
-  { id: DeFiStrategy.PerpFunding, label: 'Perp DEX / Funding Rate' },
-  { id: DeFiStrategy.StableLp, label: 'Stablecoin Lending / LP (Morpho & Pendle)' },
-  { id: DeFiStrategy.NativeStaking, label: 'Native 1x Spot Staking' },
-  { id: DeFiStrategy.LoopedBorrow, label: 'Looped / Borrowed Margin' },
-];
 
 export const StressSimulator: React.FC<StressSimulatorProps> = ({
   monthOffset,
@@ -32,7 +22,6 @@ export const StressSimulator: React.FC<StressSimulatorProps> = ({
   spSign,
   srfUsageBillions,
   slrRelief,
-  defiStrategy,
   onChangeSimulation,
 }) => {
   return (
@@ -58,7 +47,7 @@ export const StressSimulator: React.FC<StressSimulatorProps> = ({
         </label>
       </div>
 
-      <div className="mb-4 grid grid-cols-1 gap-4 min-[821px]:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 min-[821px]:grid-cols-3">
         <div className="rounded-[8px] border border-[#334155] bg-[#1e293b]/55 p-3">
           <div className="mb-2 flex justify-between text-[0.8rem] font-semibold">
             <span>Timeline Horizon (Oct 2026 – Oct 2029)</span>
@@ -118,31 +107,6 @@ export const StressSimulator: React.FC<StressSimulatorProps> = ({
             }
             className="w-full"
           />
-        </div>
-      </div>
-
-      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#334155] pt-3">
-        <div className="text-[0.8rem] font-semibold text-[#94a3b8]">
-          Self-Custody DeFi Strategy Mechanism (Applies to DeFi Bucket):
-        </div>
-        <div className="flex flex-wrap gap-1.5">
-          {STRATEGY_OPTIONS.map((opt) => {
-            const isActive = defiStrategy === opt.id;
-            return (
-              <button
-                key={opt.id}
-                type="button"
-                onClick={() => onChangeSimulation({ defiStrategy: opt.id })}
-                className={`cursor-pointer rounded-[6px] border px-[11px] py-[7px] text-[0.78rem] font-semibold transition-colors ${
-                  isActive
-                    ? 'border-[#38bdf8] bg-[#38bdf8]/18 text-[#38bdf8]'
-                    : 'border-[#334155] bg-[#1e293b] text-[#94a3b8] hover:border-[#38bdf8]/60 hover:text-[#f8fafc]'
-                }`}
-              >
-                {opt.label}
-              </button>
-            );
-          })}
         </div>
       </div>
     </section>

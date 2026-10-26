@@ -67,7 +67,7 @@ export const Header: React.FC<HeaderProps> = ({
                 : 'border-[#334155] bg-[#1e293b] text-[#f8fafc] hover:border-[#38bdf8]'
             }`}
           >
-            ⚙️ Cloud &amp; DeFi Setup
+            ⚙️ DeFi Wallet &amp; Tools
           </button>
 
           <button
