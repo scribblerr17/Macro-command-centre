@@ -548,42 +548,71 @@
         }
       } catch (e) { console.warn('Morpho scan error:', e); }
 
-      // 2. PENDLE V2 DASHBOARD POSITIONS API
+      // 2. PENDLE V2 DASHBOARD POSITIONS API (Supports Direct Wallet PT/YT/LP + Morpho-Wrapped PT)
       try {
-        const [posRes, marketsRes] = await Promise.all([
-          fetch(`https://api-v2.pendle.finance/core/v1/dashboard/positions/database/${lowerAddr}`),
-          fetch('https://api-v2.pendle.finance/core/v1/1/markets/active').catch(() => null)
+        // Also tag any PT- or YT- tokens already found inside Morpho so you see them counted under Pendle
+        newDeFiRows.forEach(r => {
+          if (r.name.toUpperCase().includes('PT-') || r.name.toUpperCase().includes('YT-') || r.name.toUpperCase().includes('PENDLE')) {
+            counts.pendle++;
+          }
+        });
+
+        const extractUsd = (obj, priceMap, tokenAddr) => {
+          if (!obj) return 0;
+          if (typeof obj === 'number') return obj;
+          const v = obj.valuation ?? obj.valuationUsd ?? obj.usdValue ?? obj.balanceUsd ?? obj.value;
+          if (typeof v === 'number') return v;
+          if (v && typeof v === 'object') {
+            return parseFloat(v.usd ?? v.total ?? v.value ?? v.amount ?? 0) || 0;
+          }
+          const numV = parseFloat(v);
+          if (!isNaN(numV) && numV > 0) return numV;
+          // Fallback: balance * asset price
+          const bal = parseFloat(obj.balance ?? obj.activeBalance ?? obj.amount ?? 0);
+          const p = priceMap[String(tokenAddr || obj.address || '').toLowerCase()] || 0;
+          return bal > 0 && p > 0 ? bal * p : 0;
+        };
+
+        const [posRes, assetsRes] = await Promise.all([
+          fetch(`https://api-v2.pendle.finance/core/v1/dashboard/positions/database/${addr}?filterUsd=0.5`).then(r => r.ok ? r : fetch(`https://api-v2.pendle.finance/core/v1/dashboard/positions/database/${lowerAddr}?filterUsd=0.5`)),
+          fetch('https://api-v2.pendle.finance/core/v1/1/assets/all').catch(() => null)
         ]);
 
-        const symMap = {};
-        if (marketsRes && marketsRes.ok) {
-          const mJson = await marketsRes.json();
-          (mJson?.markets || mJson?.results || []).forEach(mk => {
-            const name = mk.name || mk.proSymbol || mk.symbol || 'Market';
-            if (mk.address) symMap[mk.address.toLowerCase()] = name;
-            if (mk.pt) symMap[String(mk.pt).toLowerCase().split('-').pop()] = name;
-            if (mk.yt) symMap[String(mk.yt).toLowerCase().split('-').pop()] = name;
+        const symMap = {}, priceMap = {};
+        if (assetsRes && assetsRes.ok) {
+          const aJson = await assetsRes.json();
+          (aJson?.assets || aJson || []).forEach(a => {
+            const ad = String(a?.address || '').toLowerCase();
+            if (ad) {
+              symMap[ad] = a.symbol || a.name || 'Pendle';
+              priceMap[ad] = parseFloat(a?.price?.usd ?? a?.price ?? 0) || 0;
+            }
           });
         }
 
-        if (posRes.ok) {
+        if (posRes && posRes.ok) {
           const pData = await posRes.json();
           const topList = Array.isArray(pData) ? pData : (pData?.positions || pData?.results || [pData]);
           let pIdx = 0;
 
           topList.forEach(group => {
-            if (group?.chainId && Number(group.chainId) !== 1) return;
-            const openList = group?.openPositions || group?.positions || (group?.lp || group?.pt || group?.yt ? [group] : []);
+            const openList = [
+              ...(group?.openPositions || []),
+              ...(group?.syPositions || []),
+              ...(group?.positions || []),
+              ...(group?.lp || group?.pt || group?.yt ? [group] : [])
+            ];
+
             openList.forEach(pos => {
-              const rawId = String(pos?.marketId || pos?.marketAddress || pos?.address || '').toLowerCase();
+              const rawId = String(pos?.marketId || pos?.syId || pos?.marketAddress || pos?.address || '').toLowerCase();
               const cleanAddr = rawId.includes('-') ? rawId.split('-').pop() : rawId;
               const mktLabel = pos?.symbol || pos?.name || symMap[cleanAddr] || (cleanAddr ? cleanAddr.slice(0, 8) : 'Pendle');
 
-              const ptUsd = Math.round(parseFloat(pos?.pt?.valuation || pos?.pt?.valuationUsd || pos?.ptValuationUsd || 0));
-              const ytUsd = Math.round(parseFloat(pos?.yt?.valuation || pos?.yt?.valuationUsd || pos?.ytValuationUsd || 0));
-              const lpUsd = Math.round(parseFloat(pos?.lp?.valuation || pos?.lp?.valuationUsd || pos?.lpValuationUsd || 0));
-              const syUsd = Math.round(parseFloat(pos?.sy?.valuation || pos?.sy?.valuationUsd || 0));
-              const directUsd = Math.round(parseFloat(pos?.valuation || pos?.usdValue || pos?.balanceUsd || 0));
+              const ptUsd = Math.round(extractUsd(pos?.pt, priceMap, cleanAddr));
+              const ytUsd = Math.round(extractUsd(pos?.yt, priceMap, cleanAddr));
+              const lpUsd = Math.round(extractUsd(pos?.lp, priceMap, cleanAddr));
+              const syUsd = Math.round(extractUsd(pos?.sy, priceMap, cleanAddr));
+              const directUsd = Math.round(extractUsd(pos, priceMap, cleanAddr));
 
               if (ptUsd > 1) {
                 totalSup += ptUsd; counts.pendle++; pIdx++;
