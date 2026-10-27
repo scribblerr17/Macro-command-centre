@@ -1,0 +1,56 @@
+name: NY Fed Macro Alert Monitor
+
+on:
+  schedule:
+    # Weekday Morning Briefing + Rate Shock Check (13:40 UTC = 8:40 AM EST / 9:40 AM EDT, after 8:00 AM ET SOFR/EFFR & morning Repo print)
+    - cron: '40 13 * * 1-5'
+    # Weekday Afternoon Intraday SRF Surge Check (19:15 UTC = 2:15 PM EST / 3:15 PM EDT, after 1:45 PM ET SRF operation)
+    - cron: '15 19 * * 1-5'
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Execution mode (test = always push status, morning = briefing + breaches, intraday = breaches only)'
+        required: true
+        default: 'test'
+        type: choice
+        options:
+          - test
+          - morning
+          - intraday
+
+permissions:
+  contents: read
+
+jobs:
+  evaluate-nyfed-telemetry:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Determine Alert Mode
+        id: resolve-mode
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "mode=${{ inputs.mode }}" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event.schedule }}" = "15 19 * * 1-5" ]; then
+            echo "mode=intraday" >> "$GITHUB_OUTPUT"
+          else
+            echo "mode=morning" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Fetch NY Fed Readings & Dispatch ntfy Push
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          ALERT_MODE: ${{ steps.resolve-mode.outputs.mode }}
+          DASHBOARD_URL: https://scribblerr17.github.io/Macro-command-centre/
+          SPREAD_BPS_THRESHOLD: ${{ vars.SPREAD_BPS_THRESHOLD || '15' }}
+          SRF_BILLIONS_THRESHOLD: ${{ vars.SRF_BILLIONS_THRESHOLD || '25' }}
+          SOFR_JUMP_BPS_THRESHOLD: ${{ vars.SOFR_JUMP_BPS_THRESHOLD || '5' }}
+          STRESS_SCORE_THRESHOLD: ${{ vars.STRESS_SCORE_THRESHOLD || '65' }}
+        run: node .github/scripts/check-nyfed-alerts.mjs

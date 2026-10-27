@@ -7,6 +7,8 @@ import {
 
 export interface NYFedTelemetryResult {
   sofrRate: number;
+  prevSofrRate: number;
+  sofrDailyChangeBps: number;
   effrRate: number;
   sofrSpreadBps: number;
   srfUsageBillions: number;
@@ -27,7 +29,7 @@ export interface DeFiScanResult {
 
 export async function fetchNYFedTelemetry(): Promise<NYFedTelemetryResult | null> {
   const [sofrRes, effrRes, srfRes] = await Promise.all([
-    fetch('https://markets.newyorkfed.org/api/rates/secured/sofr/last/1.json'),
+    fetch('https://markets.newyorkfed.org/api/rates/secured/sofr/last/2.json'),
     fetch('https://markets.newyorkfed.org/api/rates/unsecured/effr/last/1.json'),
     fetch('https://markets.newyorkfed.org/api/rp/all/all/results/last/5.json').catch(() => null),
   ]);
@@ -35,11 +37,15 @@ export async function fetchNYFedTelemetry(): Promise<NYFedTelemetryResult | null
   const sData = await sofrRes.json();
   const eData = await effrRes.json();
   const sRate = parseFloat(sData?.refRates?.[0]?.percentRate);
+  const prevSRateRaw = parseFloat(sData?.refRates?.[1]?.percentRate);
+  const prevSRate = Number.isNaN(prevSRateRaw) ? sRate : prevSRateRaw;
   const eRate = parseFloat(eData?.refRates?.[0]?.percentRate);
 
   if (Number.isNaN(sRate) || Number.isNaN(eRate)) {
     return null;
   }
+
+  const sofrDailyChangeBps = Math.round((sRate - prevSRate) * 100);
 
   // Parse Standing Repo Facility (SRF) daily drawings from NY Fed Repo operations
   let srfUsageBillions = 0.0;
@@ -75,6 +81,8 @@ export async function fetchNYFedTelemetry(): Promise<NYFedTelemetryResult | null
 
   return {
     sofrRate: sRate,
+    prevSofrRate: prevSRate,
+    sofrDailyChangeBps,
     effrRate: eRate,
     sofrSpreadBps: Math.round((sRate - eRate) * 100),
     srfUsageBillions,

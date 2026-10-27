@@ -37,6 +37,7 @@ export interface MacroState {
   sofrRate: number;
   effrRate: number;
   sofrSpreadBps: number;
+  sofrDailyChangeBps?: number;
   srfUsageBillions: number;
   slrRelief: boolean;
   positions: Position[];
@@ -96,3 +97,37 @@ export interface HistoricalTrendPoint {
   sofrRate: number;
   srfUsageBillions: number;
 }
+
+export type AlertKind = 'briefing' | 'breach' | 'test';
+
+export interface NotificationThresholds {
+  morningBriefingEnabled: boolean;
+  spreadEnabled: boolean;
+  spreadBpsThreshold: number;
+  srfEnabled: boolean;
+  srfBillionsThreshold: number;
+  sofrJumpEnabled: boolean;
+  sofrJumpBpsThreshold: number;
+  stressScoreEnabled: boolean;
+  stressScoreThreshold: number;
+}
+
+export interface NotificationSettings {
+  ntfyTopic: string;
+  browserNotificationsEnabled: boolean;
+  autoPushFromBrowser: boolean;
+  thresholds: NotificationThresholds;
+}
+
+export interface AlertLogEntry {
+  id: string;
+  timestamp: string;
+  effectiveDate: string;
+  kind: AlertKind;
+  severity: BadgeVariant;
+  title: string;
+  body: string;
+  metricsSummary: string;
+  read: boolean;
+}
+

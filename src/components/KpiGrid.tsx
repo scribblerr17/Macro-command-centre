@@ -5,6 +5,7 @@ interface KpiGridProps {
   impliedSofr: string;
   spSign: string;
   sofrSpreadBps: number;
+  sofrDailyChangeBps?: number;
   srfUsageBillions: number;
   srfRateCeiling?: number;
   stressScore: number;
@@ -17,6 +18,7 @@ export const KpiGrid: React.FC<KpiGridProps> = ({
   impliedSofr,
   spSign,
   sofrSpreadBps,
+  sofrDailyChangeBps = 0,
   srfUsageBillions,
   srfRateCeiling = 4.0,
   stressScore,
@@ -31,6 +33,13 @@ export const KpiGrid: React.FC<KpiGridProps> = ({
       : 'text-[#10b981]';
 
   const srfColorClass = srfUsageBillions >= 25 ? 'text-[#ef4444]' : 'text-[#f8fafc]';
+  const jumpSign = sofrDailyChangeBps >= 0 ? '+' : '';
+  const jumpColorClass =
+    sofrDailyChangeBps >= 5
+      ? 'text-[#ef4444] font-bold'
+      : sofrDailyChangeBps >= 3
+      ? 'text-[#f59e0b] font-semibold'
+      : 'text-[#94a3b8]';
 
   return (
     <section className="mb-4 grid grid-cols-1 gap-3 min-[481px]:grid-cols-2 min-[901px]:grid-cols-4">
@@ -38,11 +47,17 @@ export const KpiGrid: React.FC<KpiGridProps> = ({
         <div className="mb-1.5 text-[0.75rem] font-semibold text-[#94a3b8]">
           SOFR vs EFFR ({effrRate.toFixed(2)}%)
         </div>
-        <div className="mb-1 font-mono text-[1.3rem] font-extrabold text-[#38bdf8]">
+        <div className="mb-1 font-mono text-[1.3rem] font-extrabold text-[#38bdf8] tabular-nums">
           {impliedSofr}% ({spSign}
           {sofrSpreadBps} bps)
         </div>
-        <div className="text-[0.73rem] text-[#94a3b8]">IORB Bench: 3.90%</div>
+        <div className="flex items-center justify-between gap-2 font-mono text-[0.73rem] text-[#94a3b8] tabular-nums">
+          <span>IORB: 3.90%</span>
+          <span className={jumpColorClass}>
+            1D &Delta;: {jumpSign}
+            {sofrDailyChangeBps} bps
+          </span>
+        </div>
       </div>
 
       <div className="rounded-[10px] border border-[#334155] bg-[#111827] p-3.5">

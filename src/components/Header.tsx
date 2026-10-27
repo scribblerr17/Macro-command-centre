@@ -9,8 +9,11 @@ interface HeaderProps {
   activePhase: 1 | 2 | 3;
   phaseBannerText: string;
   isDrawerOpen: boolean;
+  isNotifOpen: boolean;
+  unreadAlertCount: number;
   isSyncing: boolean;
   onToggleDrawer: () => void;
+  onToggleNotif: () => void;
   onSyncAll: () => void;
   onResetBaseline: () => void;
 }
@@ -22,8 +25,11 @@ export const Header: React.FC<HeaderProps> = ({
   activePhase,
   phaseBannerText,
   isDrawerOpen,
+  isNotifOpen,
+  unreadAlertCount,
   isSyncing,
   onToggleDrawer,
+  onToggleNotif,
   onSyncAll,
   onResetBaseline,
 }) => {
@@ -60,8 +66,25 @@ export const Header: React.FC<HeaderProps> = ({
         <div className="flex flex-wrap gap-1.5">
           <button
             type="button"
+            onClick={onToggleNotif}
+            className={`inline-flex min-h-[38px] cursor-pointer items-center gap-1.5 rounded-[6px] border px-3 py-2 text-[0.8rem] font-semibold transition-colors ${
+              isNotifOpen
+                ? 'border-[#38bdf8] bg-[#1e293b] text-[#38bdf8]'
+                : 'border-[#334155] bg-[#1e293b] text-[#f8fafc] hover:border-[#38bdf8]'
+            }`}
+          >
+            <span>🔔 Fed Alerts</span>
+            {unreadAlertCount > 0 && (
+              <span className="rounded bg-[#ef4444] px-1.5 py-0.5 font-mono text-[0.7rem] font-extrabold leading-none text-white tabular-nums">
+                {unreadAlertCount}
+              </span>
+            )}
+          </button>
+
+          <button
+            type="button"
             onClick={onToggleDrawer}
-            className={`cursor-pointer rounded-[6px] border px-3 py-2 text-[0.8rem] font-semibold transition-colors ${
+            className={`min-h-[38px] cursor-pointer rounded-[6px] border px-3 py-2 text-[0.8rem] font-semibold transition-colors ${
               isDrawerOpen
                 ? 'border-[#38bdf8] bg-[#1e293b] text-[#38bdf8]'
                 : 'border-[#334155] bg-[#1e293b] text-[#f8fafc] hover:border-[#38bdf8]'
@@ -74,7 +97,7 @@ export const Header: React.FC<HeaderProps> = ({
             type="button"
             onClick={onSyncAll}
             disabled={isSyncing}
-            className="cursor-pointer rounded-[6px] border border-[#38bdf8] bg-[#0284c7] px-3 py-2 text-[0.8rem] font-semibold text-white transition-opacity hover:opacity-95 disabled:cursor-wait disabled:opacity-65"
+            className="min-h-[38px] cursor-pointer rounded-[6px] border border-[#38bdf8] bg-[#0284c7] px-3 py-2 text-[0.8rem] font-semibold text-white transition-opacity hover:opacity-95 disabled:cursor-wait disabled:opacity-65"
           >
             {isSyncing ? '🔄 Syncing...' : '🔄 Sync NY Fed & DeFi'}
           </button>
