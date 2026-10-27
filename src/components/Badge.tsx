@@ -16,7 +16,7 @@ const variantClasses: Record<BadgeVariant, string> = {
 export const Badge: React.FC<BadgeProps> = ({ variant, children }) => {
   return (
     <span
-      className={`inline-block rounded-[4px] border px-2 py-[3px] font-mono text-[0.72rem] font-bold ${variantClasses[variant]}`}
+      className={`inline-block shrink-0 whitespace-nowrap rounded-[4px] border px-2 py-[2px] font-mono text-[0.7rem] font-bold tabular-nums ${variantClasses[variant]}`}
     >
       {children}
     </span>

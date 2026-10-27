@@ -264,9 +264,16 @@ export const App: React.FC = () => {
           };
         });
 
+        const compactUsd =
+          result.totalSup >= 1_000_000
+            ? `$${(result.totalSup / 1_000_000).toFixed(2)}M`
+            : result.totalSup >= 1_000
+            ? `$${(result.totalSup / 1_000).toFixed(1)}k`
+            : `$${result.totalSup.toLocaleString()}`;
+
         setSyncBadge({
           variant: BadgeVariant.Green,
-          text: `Synced (M:${result.counts.morpho} P:${result.counts.pendle} R:${result.counts.merkl}) +$${result.totalSup.toLocaleString()}`,
+          text: `Synced (M:${result.counts.morpho} P:${result.counts.pendle} R:${result.counts.merkl}) +${compactUsd}`,
         });
       } else {
         setSyncBadge({
