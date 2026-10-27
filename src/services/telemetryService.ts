@@ -8,6 +8,8 @@ export interface NYFedTelemetryResult {
   sofrRate: number;
   effrRate: number;
   sofrSpreadBps: number;
+  srfUsageBillions: number;
+  srfRateCeiling: number;
   effectiveDate: string;
 }
 
@@ -23,23 +25,61 @@ export interface DeFiScanResult {
 }
 
 export async function fetchNYFedTelemetry(): Promise<NYFedTelemetryResult | null> {
-  const [sofrRes, effrRes] = await Promise.all([
+  const [sofrRes, effrRes, srfRes] = await Promise.all([
     fetch('https://markets.newyorkfed.org/api/rates/secured/sofr/last/1.json'),
     fetch('https://markets.newyorkfed.org/api/rates/unsecured/effr/last/1.json'),
+    fetch('https://markets.newyorkfed.org/api/rp/all/all/results/last/5.json').catch(() => null),
   ]);
+
   const sData = await sofrRes.json();
   const eData = await effrRes.json();
   const sRate = parseFloat(sData?.refRates?.[0]?.percentRate);
   const eRate = parseFloat(eData?.refRates?.[0]?.percentRate);
-  if (!Number.isNaN(sRate) && !Number.isNaN(eRate)) {
-    return {
-      sofrRate: sRate,
-      effrRate: eRate,
-      sofrSpreadBps: Math.round((sRate - eRate) * 100),
-      effectiveDate: String(sData?.refRates?.[0]?.effectiveDate || 'Live'),
-    };
+
+  if (Number.isNaN(sRate) || Number.isNaN(eRate)) {
+    return null;
   }
-  return null;
+
+  // Parse Standing Repo Facility (SRF) daily drawings from NY Fed Repo operations
+  let srfUsageBillions = 0.0;
+  let srfRateCeiling = 4.0;
+
+  if (srfRes && srfRes.ok) {
+    try {
+      const rJson = await srfRes.json();
+      const ops: Record<string, unknown>[] = Array.isArray(rJson?.repo?.operations)
+        ? rJson.repo.operations
+        : [];
+      const repoOps = ops.filter((o) => o?.operationType === 'Repo');
+
+      if (repoOps.length > 0) {
+        const latestDate = String(repoOps[0]?.operationDate || '');
+        const todayOps = repoOps.filter((o) => String(o?.operationDate || '') === latestDate);
+        const totalAccepted = todayOps.reduce(
+          (sum, o) => sum + (Number(o?.totalAmtAccepted) || 0),
+          0
+        );
+        srfUsageBillions = Math.round((totalAccepted / 1e9) * 10) / 10;
+
+        const details = todayOps[0]?.details as Record<string, unknown>[] | undefined;
+        const parsedCeiling = parseFloat(String(details?.[0]?.percentOfferingRate || ''));
+        if (!Number.isNaN(parsedCeiling) && parsedCeiling > 0) {
+          srfRateCeiling = parsedCeiling;
+        }
+      }
+    } catch {
+      // Non-fatal: fallback to 0.0B baseline
+    }
+  }
+
+  return {
+    sofrRate: sRate,
+    effrRate: eRate,
+    sofrSpreadBps: Math.round((sRate - eRate) * 100),
+    srfUsageBillions,
+    srfRateCeiling,
+    effectiveDate: String(sData?.refRates?.[0]?.effectiveDate || 'Live'),
+  };
 }
 
 export function parseWalletAddresses(rawInput: string): string[] {

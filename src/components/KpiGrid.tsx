@@ -6,6 +6,7 @@ interface KpiGridProps {
   spSign: string;
   sofrSpreadBps: number;
   srfUsageBillions: number;
+  srfRateCeiling?: number;
   stressScore: number;
   stressColor: 'red' | 'amber' | 'green';
   stressSub: string;
@@ -17,6 +18,7 @@ export const KpiGrid: React.FC<KpiGridProps> = ({
   spSign,
   sofrSpreadBps,
   srfUsageBillions,
+  srfRateCeiling = 4.0,
   stressScore,
   stressColor,
   stressSub,
@@ -50,7 +52,9 @@ export const KpiGrid: React.FC<KpiGridProps> = ({
         <div className={`mb-1 font-mono text-[1.3rem] font-extrabold ${srfColorClass}`}>
           ${srfUsageBillions.toFixed(1)}B
         </div>
-        <div className="text-[0.73rem] text-[#94a3b8]">4.00% Ceiling (52W Hi $74.6B)</div>
+        <div className="text-[0.73rem] text-[#94a3b8]">
+          {srfRateCeiling.toFixed(2)}% Ceiling (52W Hi $74.6B)
+        </div>
       </div>
 
       <div className="rounded-[10px] border border-[#334155] bg-[#111827] p-3.5">

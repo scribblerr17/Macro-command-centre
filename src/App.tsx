@@ -51,6 +51,7 @@ export const App: React.FC = () => {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isScanningDeFi, setIsScanningDeFi] = useState(false);
+  const [srfCeiling, setSrfCeiling] = useState(4.0);
   const [syncBadge, setSyncBadge] = useState<SyncBadgeState>({
     variant: BadgeVariant.Blue,
     text: 'Ready',
@@ -90,8 +91,10 @@ export const App: React.FC = () => {
           sofrRate: telemetry.sofrRate,
           effrRate: telemetry.effrRate,
           sofrSpreadBps: telemetry.sofrSpreadBps,
+          srfUsageBillions: telemetry.srfUsageBillions,
           monthOffset: calcRealMonthOffset(),
         }));
+        setSrfCeiling(telemetry.srfRateCeiling);
         setSyncBadge({
           variant: BadgeVariant.Green,
           text: `NY Fed Live (${telemetry.effectiveDate})`,
@@ -347,6 +350,7 @@ export const App: React.FC = () => {
         spSign={metrics.spSign}
         sofrSpreadBps={state.sofrSpreadBps}
         srfUsageBillions={state.srfUsageBillions}
+        srfRateCeiling={srfCeiling}
         stressScore={metrics.stressScore}
         stressColor={metrics.stressColor}
         stressSub={metrics.stressSub}
