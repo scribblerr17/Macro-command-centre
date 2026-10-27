@@ -7,6 +7,7 @@ import {
   ContagionMonitorState,
   CustodyHygiene,
   MacroState,
+  Position,
   RebalanceDirectiveState,
 } from '../types/macro';
 
@@ -42,6 +43,7 @@ export function createBaselineState(): MacroState {
         bucket: BucketCategory.DryPowder,
         custody: CustodyHygiene.DirectTreasury,
         value: 35000,
+        apy: 3.88,
       },
       {
         id: 2,
@@ -49,6 +51,7 @@ export function createBaselineState(): MacroState {
         bucket: BucketCategory.HardAssets,
         custody: CustodyHygiene.ColdSelfCustody,
         value: 40000,
+        apy: 0,
       },
       {
         id: 3,
@@ -56,6 +59,7 @@ export function createBaselineState(): MacroState {
         bucket: BucketCategory.Equities,
         custody: CustodyHygiene.DirectTreasury,
         value: 17000,
+        apy: 2.5,
       },
     ],
   };
@@ -76,6 +80,7 @@ export function createDemoState(): MacroState {
         bucket: BucketCategory.DryPowder,
         custody: CustodyHygiene.DirectTreasury,
         value: 35000,
+        apy: 3.88,
       },
       {
         id: 2,
@@ -83,6 +88,7 @@ export function createDemoState(): MacroState {
         bucket: BucketCategory.HardAssets,
         custody: CustodyHygiene.ColdSelfCustody,
         value: 42000,
+        apy: 0,
       },
       {
         id: 3,
@@ -90,21 +96,36 @@ export function createDemoState(): MacroState {
         bucket: BucketCategory.Equities,
         custody: CustodyHygiene.DirectTreasury,
         value: 18000,
+        apy: 2.5,
       },
       {
         id: 4,
         name: 'Morpho Blue USDC Supply (MetaMorpho)',
         bucket: BucketCategory.SelfCustodyDeFi,
         custody: CustodyHygiene.ColdSelfCustody,
-        value: 5000,
+        value: 6000,
+        apy: 8.9,
+        utilization: 86.4,
         isMorpho: true,
       },
       {
         id: 5,
-        name: 'Pendle PT-sUSDe Dec 2026 (Fixed Yield)',
+        name: 'Pendle PT-sUSDe Dec 2026 (Fixed APY)',
         bucket: BucketCategory.SelfCustodyDeFi,
         custody: CustodyHygiene.ColdSelfCustody,
-        value: 5000,
+        value: 6000,
+        apy: 12.4,
+        isMorpho: true,
+      },
+      {
+        id: 6,
+        name: 'Morpho Margin Borrow: USDC Debt (vs PT-sUSDe)',
+        bucket: BucketCategory.MarginBorrow,
+        custody: CustodyHygiene.ColdSelfCustody,
+        value: 2500,
+        apy: 5.2,
+        ltv: 77.0,
+        utilization: 88.5,
         isMorpho: true,
       },
     ],
@@ -188,7 +209,15 @@ export function encodeStateToShareUrl(state: MacroState): string {
       sp: state.sofrSpreadBps,
       srf: state.srfUsageBillions,
       slr: state.slrRelief ? 1 : 0,
-      pos: state.positions.map((p) => [p.name, p.bucket, p.custody, p.value]),
+      pos: state.positions.map((p) => [
+        p.name,
+        p.bucket,
+        p.custody,
+        p.value,
+        p.apy ?? null,
+        p.ltv ?? null,
+        p.utilization ?? null,
+      ]),
     };
     const json = JSON.stringify(minified);
     const b64 = btoa(encodeURIComponent(json));
@@ -208,14 +237,19 @@ export function decodeStateFromUrl(): Partial<MacroState> | null {
     const json = decodeURIComponent(atob(b64));
     const parsed = JSON.parse(json);
     if (parsed && Array.isArray(parsed.pos)) {
-      const positions = parsed.pos.map((item: [string, string, string, number], idx: number) => ({
-        id: Date.now() + idx,
-        name: item[0],
-        bucket: item[1],
-        custody: item[2],
-        value: item[3],
-        isMorpho: false,
-      }));
+      const positions: Position[] = parsed.pos.map(
+        (item: [string, string, string, number, number?, number?, number?], idx: number) => ({
+          id: Date.now() + idx,
+          name: item[0],
+          bucket: item[1],
+          custody: item[2],
+          value: item[3],
+          apy: typeof item[4] === 'number' ? item[4] : undefined,
+          ltv: typeof item[5] === 'number' ? item[5] : undefined,
+          utilization: typeof item[6] === 'number' ? item[6] : undefined,
+          isMorpho: false,
+        })
+      );
       return {
         monthOffset: typeof parsed.m === 'number' ? parsed.m : 0,
         sofrSpreadBps: typeof parsed.sp === 'number' ? parsed.sp : 2,

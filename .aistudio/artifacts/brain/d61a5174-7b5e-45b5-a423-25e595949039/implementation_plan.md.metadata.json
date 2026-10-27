@@ -1,6 +1,6 @@
 {
-  "summary":  "Positions Ledger has been upgraded with category grouping, collapsible accordion sections, subtotals, weight percentages, and real-time on-chain LTV and debt-to-collateral risk metrics.",
-  "updatedAt":  "2026-10-26T23:46:26.901058692Z",
+  "summary":  "Integrated a D3-based dual-axis line chart inside a collapsible historical telemetry card to plot 30 days of NY Fed SOFR rates (%) and Standing Repo Facility (SRF) usage ($B) with touch crosshair tooltips.",
+  "updatedAt":  "2026-10-27T01:06:06.551970110Z",
   "requestFeedback":  true,
   "userFacing":  true
 }

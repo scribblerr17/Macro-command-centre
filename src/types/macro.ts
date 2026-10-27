@@ -27,6 +27,9 @@ export interface Position {
   value: number;
   isMorpho?: boolean;
   isDeFi?: boolean;
+  apy?: number;
+  ltv?: number;
+  utilization?: number;
 }
 
 export interface MacroState {
@@ -85,4 +88,11 @@ export interface RebalanceDirectiveState {
   maxDriftTxt: string;
   title: string;
   body: string;
+}
+
+export interface HistoricalTrendPoint {
+  date: string;
+  formattedDate: string;
+  sofrRate: number;
+  srfUsageBillions: number;
 }

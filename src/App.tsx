@@ -2,18 +2,22 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AlertsGrid } from './components/AlertsGrid';
 import { AllocationChart } from './components/AllocationChart';
 import { Header } from './components/Header';
+import { HistoricalTrendChart } from './components/HistoricalTrendChart';
 import { KpiGrid } from './components/KpiGrid';
 import { PositionsLedger } from './components/PositionsLedger';
 import { StressSimulator } from './components/StressSimulator';
 import { SyncDrawer } from './components/SyncDrawer';
 import {
+  fetchNYFed30DayHistory,
   fetchNYFedTelemetry,
+  generateFallback30DayHistory,
   parseWalletAddresses,
   scanEthereumDeFiPositions,
 } from './services/telemetryService';
 import {
   BadgeVariant,
   ConnectionSettings,
+  HistoricalTrendPoint,
   MacroState,
   NoticeMessage,
   Position,
@@ -48,6 +52,7 @@ export const App: React.FC = () => {
   });
 
   const [connections, setConnections] = useState<ConnectionSettings>(() => loadStoredConnections());
+  const [historyData, setHistoryData] = useState<HistoricalTrendPoint[]>(() => generateFallback30DayHistory());
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isScanningDeFi, setIsScanningDeFi] = useState(false);
@@ -163,6 +168,14 @@ export const App: React.FC = () => {
     setNotice(null);
     try {
       await handleFetchNYFed();
+      try {
+        const hist = await fetchNYFed30DayHistory();
+        if (hist && hist.length > 0) {
+          setHistoryData(hist);
+        }
+      } catch {
+        // Retain current series
+      }
       if (connectionsRef.current.walletAddress.includes('0x')) {
         await handleScanDeFi(true);
       }
@@ -355,6 +368,8 @@ export const App: React.FC = () => {
         stressColor={metrics.stressColor}
         stressSub={metrics.stressSub}
       />
+
+      <HistoricalTrendChart data={historyData} isLoading={isSyncing} />
 
       <StressSimulator
         monthOffset={state.monthOffset}

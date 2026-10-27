@@ -20,6 +20,8 @@ interface BucketGroup {
   positions: Position[];
   subtotal: number;
   weightPct: number;
+  avgApy?: number;
+  avgUtilization?: number;
 }
 
 const ORDERED_BUCKETS: BucketCategory[] = [
@@ -49,6 +51,7 @@ export const PositionsLedger: React.FC<PositionsLedgerProps> = ({
   const [bucket, setBucket] = useState<string>(BucketCategory.HardAssets);
   const [custody, setCustody] = useState<string>(CustodyHygiene.ColdSelfCustody);
   const [valStr, setValStr] = useState('');
+  const [apyStr, setApyStr] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
 
   const toggleGroup = (bucketName: string) => {
@@ -75,7 +78,6 @@ export const PositionsLedger: React.FC<PositionsLedgerProps> = ({
       if (groupedMap[b]) {
         groupedMap[b].push(p);
       } else {
-        // Fallback for custom or legacy bucket labels
         groupedMap[BucketCategory.SelfCustodyDeFi].push(p);
       }
 
@@ -91,12 +93,36 @@ export const PositionsLedger: React.FC<PositionsLedgerProps> = ({
       const isDebt = b === BucketCategory.MarginBorrow;
       const subtotal = list.reduce((sum, item) => sum + item.value, 0);
       const weightPct = (subtotal / Math.max(1, grossAssets)) * 100;
+
+      // Calculate weighted APY & Utilization
+      let weightedApySum = 0;
+      let apyWeightBase = 0;
+      let weightedUtilSum = 0;
+      let utilWeightBase = 0;
+
+      list.forEach((p) => {
+        if (typeof p.apy === 'number') {
+          weightedApySum += p.value * p.apy;
+          apyWeightBase += p.value;
+        }
+        if (typeof p.utilization === 'number') {
+          weightedUtilSum += p.value * p.utilization;
+          utilWeightBase += p.value;
+        }
+      });
+
+      const avgApy = apyWeightBase > 0 ? Math.round((weightedApySum / apyWeightBase) * 10) / 10 : undefined;
+      const avgUtilization =
+        utilWeightBase > 0 ? Math.round((weightedUtilSum / utilWeightBase) * 10) / 10 : undefined;
+
       return {
         bucket: b,
         isDebt,
         positions: list,
         subtotal,
         weightPct,
+        avgApy,
+        avgUtilization,
       };
     });
 
@@ -141,6 +167,8 @@ export const PositionsLedger: React.FC<PositionsLedgerProps> = ({
     e.preventDefault();
     const trimmedName = name.trim();
     const numericVal = parseFloat(valStr);
+    const numericApy = apyStr.trim() !== '' ? parseFloat(apyStr) : undefined;
+
     if (!trimmedName || Number.isNaN(numericVal) || numericVal <= 0) {
       setFormError('Enter a position name and positive dollar value.');
       return;
@@ -151,10 +179,12 @@ export const PositionsLedger: React.FC<PositionsLedgerProps> = ({
       bucket,
       custody,
       value: numericVal,
+      apy: numericApy !== undefined && !Number.isNaN(numericApy) ? numericApy : undefined,
       isMorpho: false,
     });
     setName('');
     setValStr('');
+    setApyStr('');
   };
 
   return (
@@ -165,12 +195,12 @@ export const PositionsLedger: React.FC<PositionsLedgerProps> = ({
             Self-Custody, DeFi Lend, PendleLoop &amp; Margin Borrow Holdings
           </h2>
           <p className="text-[0.78rem] text-[#94a3b8]">
-            Grouped by category with subtotals, collapsible sections, and on-chain LTV risk analytics
+            Grouped by category with live APY, LTV, pool utilization percentages, and subtotals
           </p>
         </div>
       </div>
 
-      {/* LTV & DEBT RISK BANNER (Highlights whenever debt is present) */}
+      {/* LTV & DEBT RISK BANNER */}
       {borrowTotal > 0 && (
         <div
           className={`mb-4 rounded-[8px] border p-3 ${
@@ -194,7 +224,7 @@ export const PositionsLedger: React.FC<PositionsLedgerProps> = ({
         </div>
       )}
 
-      {/* CATEGORY-GROUPED TABLES */}
+      {/* CATEGORY-GROUPED ACCORDION */}
       <div className="space-y-3">
         {groups.map((group) => {
           const isCollapsed = !!collapsedGroups[group.bucket];
@@ -207,18 +237,21 @@ export const PositionsLedger: React.FC<PositionsLedgerProps> = ({
             ? BadgeVariant.Amber
             : BadgeVariant.Blue;
 
+          const isDeFiBucket = group.bucket === BucketCategory.SelfCustodyDeFi;
+          const isMarginBucket = group.bucket === BucketCategory.MarginBorrow;
+
           return (
             <div
               key={group.bucket}
               className="overflow-hidden rounded-[8px] border border-[#334155] bg-[#0b1120]/60"
             >
-              {/* GROUP HEADER & ACCORDION TOGGLE */}
+              {/* GROUP HEADER & ACCORDION TOGGLE WITH APY, LTV & UTILIZATION BADGES */}
               <button
                 type="button"
                 onClick={() => toggleGroup(group.bucket)}
                 className="flex w-full cursor-pointer flex-wrap items-center justify-between gap-2 bg-[#1e293b]/70 px-3.5 py-2.5 text-left transition-colors hover:bg-[#1e293b]"
               >
-                <div className="flex items-center gap-2.5">
+                <div className="flex flex-wrap items-center gap-2">
                   <span className="font-mono text-[0.8rem] text-[#94a3b8] transition-transform duration-200">
                     {isCollapsed ? '▶' : '▼'}
                   </span>
@@ -229,6 +262,40 @@ export const PositionsLedger: React.FC<PositionsLedgerProps> = ({
                   <span className="rounded bg-[#0f172a] px-1.5 py-0.5 text-[0.68rem] text-[#94a3b8]">
                     {group.positions.length} {group.positions.length === 1 ? 'holding' : 'holdings'}
                   </span>
+
+                  {/* APY Rate Badge for Self-Custody DeFi */}
+                  {isDeFiBucket && group.avgApy !== undefined && (
+                    <span className="rounded border border-[#10b981]/40 bg-[#10b981]/15 px-2 py-0.5 font-mono text-[0.72rem] font-bold text-[#6ee7b7]">
+                      Avg Yield: {group.avgApy.toFixed(1)}% APY
+                    </span>
+                  )}
+
+                  {/* APY, LTV & Util Badges for Margin / Borrow */}
+                  {isMarginBucket && (
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {group.avgApy !== undefined && (
+                        <span className="rounded border border-[#ef4444]/40 bg-[#ef4444]/15 px-2 py-0.5 font-mono text-[0.72rem] font-bold text-[#fca5a5]">
+                          Borrow APY: {group.avgApy.toFixed(1)}%
+                        </span>
+                      )}
+                      <span className="rounded border border-[#38bdf8]/40 bg-[#38bdf8]/15 px-2 py-0.5 font-mono text-[0.72rem] font-bold text-[#38bdf8]">
+                        LTV: {ltvOnDeFi.toFixed(1)}%
+                      </span>
+                      {group.avgUtilization !== undefined && (
+                        <span
+                          className={`rounded border px-2 py-0.5 font-mono text-[0.72rem] font-bold ${
+                            group.avgUtilization >= 90
+                              ? 'border-[#ef4444]/50 bg-[#ef4444]/20 text-[#fca5a5]'
+                              : group.avgUtilization >= 80
+                              ? 'border-[#f59e0b]/50 bg-[#f59e0b]/20 text-[#fcd34d]'
+                              : 'border-[#38bdf8]/40 bg-[#38bdf8]/15 text-[#38bdf8]'
+                          }`}
+                        >
+                          Pool Util: {group.avgUtilization.toFixed(1)}%
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex items-center gap-3 font-mono text-[0.82rem]">
@@ -256,7 +323,7 @@ export const PositionsLedger: React.FC<PositionsLedgerProps> = ({
                     <thead>
                       <tr className="border-b border-[#334155]/60 bg-[#111827]/40">
                         <th className="px-3 py-2 text-left text-[0.7rem] uppercase tracking-wider text-[#94a3b8]">
-                          Holding / Instrument
+                          Holding / Instrument &amp; Rates
                         </th>
                         <th className="px-3 py-2 text-left text-[0.7rem] uppercase tracking-wider text-[#94a3b8]">
                           Custody Hygiene
@@ -296,12 +363,48 @@ export const PositionsLedger: React.FC<PositionsLedgerProps> = ({
                                 isDebtRow ? 'bg-[#ef4444]/[0.03]' : ''
                               }`}
                             >
-                              <td className="px-3 py-2.5 font-medium text-[#f8fafc]">
-                                <div className="flex items-center gap-2">
-                                  <span>{p.name}</span>
+                              <td className="px-3 py-2.5">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <span className="font-semibold text-[#f8fafc]">{p.name}</span>
                                   {p.isMorpho && (
                                     <span className="rounded bg-[#38bdf8]/15 px-1.5 py-0.5 text-[0.68rem] text-[#38bdf8]">
                                       DeFi Feed
+                                    </span>
+                                  )}
+
+                                  {/* Individual APY Pill */}
+                                  {p.apy !== undefined && (
+                                    <span
+                                      className={`rounded px-1.5 py-0.5 font-mono text-[0.7rem] font-bold ${
+                                        isDebtRow
+                                          ? 'border border-[#ef4444]/40 bg-[#ef4444]/15 text-[#fca5a5]'
+                                          : 'border border-[#10b981]/40 bg-[#10b981]/15 text-[#6ee7b7]'
+                                      }`}
+                                    >
+                                      {isDebtRow ? 'Borrow: ' : 'APY: '}
+                                      {p.apy.toFixed(1)}%
+                                    </span>
+                                  )}
+
+                                  {/* Individual LTV Pill */}
+                                  {p.ltv !== undefined && (
+                                    <span className="rounded border border-[#38bdf8]/40 bg-[#38bdf8]/15 px-1.5 py-0.5 font-mono text-[0.7rem] font-bold text-[#38bdf8]">
+                                      LLTV: {p.ltv.toFixed(1)}%
+                                    </span>
+                                  )}
+
+                                  {/* Individual Utilization Pill */}
+                                  {p.utilization !== undefined && (
+                                    <span
+                                      className={`rounded border px-1.5 py-0.5 font-mono text-[0.7rem] font-bold ${
+                                        p.utilization >= 90
+                                          ? 'border-[#ef4444]/50 bg-[#ef4444]/20 text-[#fca5a5]'
+                                          : p.utilization >= 80
+                                          ? 'border-[#f59e0b]/50 bg-[#f59e0b]/20 text-[#fcd34d]'
+                                          : 'border-[#334155] bg-[#1e293b] text-[#94a3b8]'
+                                      }`}
+                                    >
+                                      Util: {p.utilization.toFixed(1)}%
                                     </span>
                                   )}
                                 </div>
@@ -338,10 +441,10 @@ export const PositionsLedger: React.FC<PositionsLedgerProps> = ({
         })}
       </div>
 
-      {/* QUICK ADD POSITION FORM */}
+      {/* QUICK ADD POSITION FORM WITH OPTIONAL APY INPUT */}
       <form
         onSubmit={handleSubmit}
-        className="mt-4 grid grid-cols-1 gap-2 border-t border-[#334155] pt-3.5 min-[481px]:grid-cols-2 min-[781px]:grid-cols-[1.6fr_1.3fr_1.2fr_1fr_auto]"
+        className="mt-4 grid grid-cols-1 gap-2 border-t border-[#334155] pt-3.5 min-[540px]:grid-cols-2 min-[880px]:grid-cols-[1.5fr_1.2fr_1.1fr_0.9fr_0.8fr_auto]"
       >
         <input
           type="text"
@@ -389,11 +492,20 @@ export const PositionsLedger: React.FC<PositionsLedgerProps> = ({
           className="w-full rounded-[6px] border border-[#334155] bg-[#1e293b] px-2.5 py-2 text-[0.82rem] text-[#f8fafc] placeholder-[#94a3b8] focus:border-[#38bdf8] focus:outline-none"
         />
 
+        <input
+          type="number"
+          step="any"
+          value={apyStr}
+          onChange={(e) => setApyStr(e.target.value)}
+          placeholder="APY % (opt)"
+          className="w-full rounded-[6px] border border-[#334155] bg-[#1e293b] px-2.5 py-2 text-[0.82rem] text-[#f8fafc] placeholder-[#94a3b8] focus:border-[#38bdf8] focus:outline-none"
+        />
+
         <button
           type="submit"
-          className="cursor-pointer rounded-[6px] border border-[#38bdf8] bg-[#0284c7] px-3.5 py-2 text-[0.8rem] font-semibold text-white transition-opacity hover:opacity-95 min-[481px]:col-span-2 min-[781px]:col-span-1"
+          className="cursor-pointer rounded-[6px] border border-[#38bdf8] bg-[#0284c7] px-3.5 py-2 text-[0.8rem] font-semibold text-white transition-opacity hover:opacity-95 min-[540px]:col-span-2 min-[880px]:col-span-1"
         >
-          + Add Position
+          + Add
         </button>
       </form>
 
